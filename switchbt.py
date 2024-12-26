@@ -40,8 +40,7 @@ class SwitchButton(QPushButton):
 
         if self.isChecked():
             # bg_color = QColor(1, 116, 209)
-            # bg_color = QColor(191, 236, 223)
-            bg_color = QColor(199, 237, 204)
+            bg_color = QColor(50, 205, 50) # 199, 237, 204 # 191, 236, 223
             handle_color = QColor(255, 255, 255)
 
         painter.setBrush(bg_color)

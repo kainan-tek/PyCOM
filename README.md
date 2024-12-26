@@ -20,7 +20,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ## pack with nuitka
 ```C
 // install nuitka  
-pip install nuitka==2.5.6 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install nuitka==2.5.8 -i https://pypi.tuna.tsinghua.edu.cn/simple
 // generate exe
 nuitka --mingw64 --standalone --follow-imports --windows-console-mode=disable --show-progress --show-memory --enable-plugin=pyside6 --windows-icon-from-ico=.\resrc\images\pycom.ico --include-data-dir=.\demo=.\demo --include-data-files=.\ReleaseNote.txt=ReleaseNote.txt main.py -o PyCOM.exe
 // run the executable file: PyCOM.exe
