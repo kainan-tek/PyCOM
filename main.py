@@ -148,6 +148,7 @@ class MainWindow(QMainWindow):
         self.ui.checkBox_sCycle.clicked.connect(self.send_set_cyclemode)
         self.ui.textEdit_sSend.installEventFilter(self)
         self.ui.lineEdit_sCycle.setValidator(QIntValidator())
+        self.ui.pushButton_sSend.setDisabled(True)
 
         # Multiple send setup: connect multiple send options
         self.ui.pushButton_m1.clicked.connect(self.multi_send_m1)
@@ -230,6 +231,13 @@ class MainWindow(QMainWindow):
         """
         if self.switchBt_OnOff.isChecked():
             self.ui.pushButton_Check.setDisabled(True)
+            self.ui.comboBox_BRate.setDisabled(True)
+            self.ui.comboBox_BSize.setDisabled(True)
+            self.ui.comboBox_SBit.setDisabled(True)
+            self.ui.comboBox_PBit.setDisabled(True)
+            self.ui.comboBox_SPort.setDisabled(True)
+            self.ui.pushButton_sSend.setEnabled(True)
+
             self.ser_instance.port = self.ui.comboBox_SPort.currentText().strip()
             self.ser_instance.baudrate = int(self.ui.comboBox_BRate.currentText().strip())
             self.ser_instance.bytesize = int(self.ui.comboBox_BSize.currentText().strip())
@@ -253,6 +261,13 @@ class MainWindow(QMainWindow):
                     return
         else:
             self.ui.pushButton_Check.setEnabled(True)
+            self.ui.comboBox_BRate.setEnabled(True)
+            self.ui.comboBox_BSize.setEnabled(True)
+            self.ui.comboBox_SBit.setEnabled(True)
+            self.ui.comboBox_PBit.setEnabled(True)
+            self.ui.comboBox_SPort.setEnabled(True)
+            self.ui.pushButton_sSend.setDisabled(True)
+
             # Check and deactivate single cycle send if active
             if self.ui.checkBox_sCycle.isChecked():
                 self.ui.checkBox_sCycle.click()
@@ -308,6 +323,13 @@ class MainWindow(QMainWindow):
         if self.ser_instance.isOpen():
             self.ui.pushButton_Open.setEnabled(False)
             self.ui.pushButton_Close.setEnabled(True)
+            self.ui.pushButton_Check.setDisabled(True)
+            self.ui.comboBox_BRate.setDisabled(True)
+            self.ui.comboBox_BSize.setDisabled(True)
+            self.ui.comboBox_SBit.setDisabled(True)
+            self.ui.comboBox_PBit.setDisabled(True)
+            self.ui.comboBox_SPort.setDisabled(True)
+            self.ui.pushButton_sSend.setEnabled(True)
             return True
 
     def close_port(self) -> None:
@@ -356,6 +378,13 @@ class MainWindow(QMainWindow):
         if not self.ser_instance.isOpen():
             self.ui.pushButton_Open.setEnabled(True)
             self.ui.pushButton_Close.setEnabled(False)
+            self.ui.pushButton_Check.setEnabled(True)
+            self.ui.comboBox_BRate.setEnabled(True)
+            self.ui.comboBox_BSize.setEnabled(True)
+            self.ui.comboBox_SBit.setEnabled(True)
+            self.ui.comboBox_PBit.setEnabled(True)
+            self.ui.comboBox_SPort.setEnabled(True)
+            self.ui.pushButton_sSend.setDisabled(True)
 
 ########################## single and multi send function ############################
 
