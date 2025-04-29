@@ -1,4 +1,7 @@
 Release Note:
+v1.2.9:
+    disable some button while port closed.
+
 v1.2.8:
     replace open/close button with switch button.
     update python version: v3.13.2

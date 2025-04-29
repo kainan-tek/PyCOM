@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
         Returns:
             None
         """
+        self.switchbt_enable: bool = True  # Flag to enable/disable switch button
         self.total_sendsize: int = 0  # The total send size
         self.total_recsize: int = 0  # The total received size
         self.datasize_text: str = ""  # The text to show the send/receive size
@@ -102,7 +103,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f'{gl.GuiInfo["proj"]} {gl.GuiInfo["version"]}')
         self.setWindowIcon(QIcon(":/icon/pycom"))
 
-        if 1:
+        if self.switchbt_enable:
             # enable switch button
             self.ui.pushButton_Open.setHidden(True)
             self.ui.pushButton_Close.setHidden(True)
@@ -115,7 +116,7 @@ class MainWindow(QMainWindow):
             self.ui.pushButton_Open.clicked.connect(self.open_port)  # Connect open button
             self.ui.pushButton_Close.clicked.connect(self.close_port)  # Connect close button
             self.ui.pushButton_Open.setEnabled(True)  # Enable open button
-            self.ui.pushButton_Close.setEnabled(False)  # Disable close button
+            self.ui.pushButton_Close.setDisabled(True)  # Disable close button
 
         # Menu setup: connect actions to corresponding functions
         self.ui.actionOpen_File.triggered.connect(self.action_open_file)
@@ -148,7 +149,6 @@ class MainWindow(QMainWindow):
         self.ui.checkBox_sCycle.clicked.connect(self.send_set_cyclemode)
         self.ui.textEdit_sSend.installEventFilter(self)
         self.ui.lineEdit_sCycle.setValidator(QIntValidator())
-        self.ui.pushButton_sSend.setDisabled(True)
 
         # Multiple send setup: connect multiple send options
         self.ui.pushButton_m1.clicked.connect(self.multi_send_m1)
@@ -172,6 +172,18 @@ class MainWindow(QMainWindow):
         self.label_rwsize = QLabel(self.datasize_text)
         self.label_rwsize.setStyleSheet("color:blue")
         self.ui.statusbar.addPermanentWidget(self.label_rwsize, stretch=0)
+
+        # Set up the initial state of the UI components
+        self.ui.pushButton_sSend.setDisabled(True)
+        self.ui.checkBox_sCycle.setDisabled(True)
+        self.ui.checkBox_mCycle.setDisabled(True)
+        self.ui.pushButton_m1.setDisabled(True)
+        self.ui.pushButton_m2.setDisabled(True)
+        self.ui.pushButton_m3.setDisabled(True)
+        self.ui.pushButton_m4.setDisabled(True)
+        self.ui.pushButton_m5.setDisabled(True)
+        self.ui.pushButton_m6.setDisabled(True)
+        self.ui.pushButton_fSend.setDisabled(True)
 
     def send_clear(self) -> None:
         """
@@ -200,10 +212,6 @@ class MainWindow(QMainWindow):
         Returns:
             bool: True if the port is closed and the ports are parsed successfully, False otherwise
         """
-        if self.ser_instance.isOpen():  # Check if the port is open
-            self.msgbox.information(self, "Info", "Please close port first")
-            return False  # Return False if the port is open
-
         # Clear the combo box
         self.ui.comboBox_SPort.clear()
 
@@ -230,61 +238,9 @@ class MainWindow(QMainWindow):
             None
         """
         if self.switchBt_OnOff.isChecked():
-            self.ui.pushButton_Check.setDisabled(True)
-            self.ui.comboBox_BRate.setDisabled(True)
-            self.ui.comboBox_BSize.setDisabled(True)
-            self.ui.comboBox_SBit.setDisabled(True)
-            self.ui.comboBox_PBit.setDisabled(True)
-            self.ui.comboBox_SPort.setDisabled(True)
-            self.ui.pushButton_sSend.setEnabled(True)
-
-            self.ser_instance.port = self.ui.comboBox_SPort.currentText().strip()
-            self.ser_instance.baudrate = int(self.ui.comboBox_BRate.currentText().strip())
-            self.ser_instance.bytesize = int(self.ui.comboBox_BSize.currentText().strip())
-            self.ser_instance.stopbits = int(self.ui.comboBox_SBit.currentText().strip())
-            self.ser_instance.parity = self.ui.comboBox_PBit.currentText().strip()[0]
-            self.ser_instance.timeout = gl.SerialInfo["timeout"]
-
-            if not self.ser_instance.port:
-                self.msgbox.information(self, "Info", "No port be selected")
-                return
-
-            if not self.ser_instance.isOpen():
-                try:
-                    self.ser_instance.open()
-                except Exception as err:
-                    self.log.error(f"Error of opening port, err: {str(err)}")
-                    if "PermissionError" in str(err):
-                        self.msgbox.critical(self, "PermissionError", "The selected port may be occupied!")
-                    else:
-                        self.msgbox.critical(self, "Error", "Can not open the port with these params")
-                    return
+            self.open_port()
         else:
-            self.ui.pushButton_Check.setEnabled(True)
-            self.ui.comboBox_BRate.setEnabled(True)
-            self.ui.comboBox_BSize.setEnabled(True)
-            self.ui.comboBox_SBit.setEnabled(True)
-            self.ui.comboBox_PBit.setEnabled(True)
-            self.ui.comboBox_SPort.setEnabled(True)
-            self.ui.pushButton_sSend.setDisabled(True)
-
-            # Check and deactivate single cycle send if active
-            if self.ui.checkBox_sCycle.isChecked():
-                self.ui.checkBox_sCycle.click()
-
-            # Check and deactivate multi cycle send if active
-            if self.ui.checkBox_mCycle.isChecked():
-                self.ui.checkBox_mCycle.click()
-
-            # Stop the file send timer
-            self.fsend_timer.stop()
-
-            # Check if the serial instance is open
-            if self.ser_instance.isOpen():
-                # Trigger the serial close function in receive thread
-                self.recthread.port_close_flag = True
-                # Note: Closing the serial directly here may cause a crash
-                # self.ser_instance.close()
+            self.close_port()
 
     # if disable switch button
     def open_port(self) -> bool:
@@ -321,8 +277,9 @@ class MainWindow(QMainWindow):
                     self.msgbox.critical(self, "Error", "Can not open the port with these params")
                 return False
         if self.ser_instance.isOpen():
-            self.ui.pushButton_Open.setEnabled(False)
-            self.ui.pushButton_Close.setEnabled(True)
+            if not self.switchbt_enable:
+                self.ui.pushButton_Open.setDisabled(True)
+                self.ui.pushButton_Close.setEnabled(True)
             self.ui.pushButton_Check.setDisabled(True)
             self.ui.comboBox_BRate.setDisabled(True)
             self.ui.comboBox_BSize.setDisabled(True)
@@ -330,7 +287,16 @@ class MainWindow(QMainWindow):
             self.ui.comboBox_PBit.setDisabled(True)
             self.ui.comboBox_SPort.setDisabled(True)
             self.ui.pushButton_sSend.setEnabled(True)
-            return True
+            self.ui.checkBox_sCycle.setEnabled(True)
+            self.ui.checkBox_mCycle.setEnabled(True)
+            self.ui.pushButton_m1.setEnabled(True)
+            self.ui.pushButton_m2.setEnabled(True)
+            self.ui.pushButton_m3.setEnabled(True)
+            self.ui.pushButton_m4.setEnabled(True)
+            self.ui.pushButton_m5.setEnabled(True)
+            self.ui.pushButton_m6.setEnabled(True)
+            self.ui.pushButton_fSend.setEnabled(True)
+        return True
 
     def close_port(self) -> None:
         """
@@ -345,11 +311,9 @@ class MainWindow(QMainWindow):
         Returns:
             None
         """
-        # Check and deactivate single cycle send if active
+        # Check and deactivate cycle send if active
         if self.ui.checkBox_sCycle.isChecked():
             self.ui.checkBox_sCycle.click()
-
-        # Check and deactivate multi cycle send if active
         if self.ui.checkBox_mCycle.isChecked():
             self.ui.checkBox_mCycle.click()
 
@@ -376,8 +340,9 @@ class MainWindow(QMainWindow):
             None
         """
         if not self.ser_instance.isOpen():
-            self.ui.pushButton_Open.setEnabled(True)
-            self.ui.pushButton_Close.setEnabled(False)
+            if not self.switchbt_enable:
+                self.ui.pushButton_Open.setEnabled(True)
+                self.ui.pushButton_Close.setDisabled(True)
             self.ui.pushButton_Check.setEnabled(True)
             self.ui.comboBox_BRate.setEnabled(True)
             self.ui.comboBox_BSize.setEnabled(True)
@@ -385,6 +350,15 @@ class MainWindow(QMainWindow):
             self.ui.comboBox_PBit.setEnabled(True)
             self.ui.comboBox_SPort.setEnabled(True)
             self.ui.pushButton_sSend.setDisabled(True)
+            self.ui.checkBox_sCycle.setDisabled(True)
+            self.ui.checkBox_mCycle.setDisabled(True)
+            self.ui.pushButton_m1.setDisabled(True)
+            self.ui.pushButton_m2.setDisabled(True)
+            self.ui.pushButton_m3.setDisabled(True)
+            self.ui.pushButton_m4.setDisabled(True)
+            self.ui.pushButton_m5.setDisabled(True)
+            self.ui.pushButton_m6.setDisabled(True)
+            self.ui.pushButton_fSend.setDisabled(True)
 
 ########################## single and multi send function ############################
 

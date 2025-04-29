@@ -1,5 +1,5 @@
 GuiInfo = {"proj": "PyCOM",
-           "version": " v1.2.8",
+           "version": " v1.2.9",
            "cwd": ""
            }
 
