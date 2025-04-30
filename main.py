@@ -1061,7 +1061,9 @@ class MainWindow(QMainWindow):
             self.recthread.requestInterruption()
             self.recthread.quit()
             self.recthread.wait()
+        # sys.exit()
         self.recthread.deleteLater()
+        self.about.destroy()
         super(MainWindow, self).closeEvent(event)
 
 ########################## Sub-thread for receiving data ############################

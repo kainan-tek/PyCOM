@@ -3,6 +3,6 @@
         <file alias="pycom">images/pycom.png</file>
     </qresource>
     <qresource prefix="/icon">
-        <file alias="wechat">images/wechat.png</file>
+        <file alias="wechat">images/wechat.jpg</file>
     </qresource>
 </RCC>
