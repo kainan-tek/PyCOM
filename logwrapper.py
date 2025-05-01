@@ -2,11 +2,12 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-LogInfo = {"reldir": "log/pycom",
-           "basename": "pycom.log",
-           "filesize": 48*1024*1024,
-           "fbkcount": 6
-           }
+LogInfo = {
+    "reldir": "log/pycom",
+    "basename": "pycom.log",
+    "filesize": 48 * 1024 * 1024,
+    "fbkcount": 6,
+}
 
 
 class Log:
@@ -23,13 +24,13 @@ class Log:
         Returns:
             None
         """
-        log_dirname: str = os.path.join(os.path.expanduser('~'), LogInfo["reldir"])
+        log_dirname: str = os.path.join(os.path.expanduser("~"), LogInfo["reldir"])
         if not os.path.exists(log_dirname):
             os.makedirs(log_dirname, exist_ok=True)
 
         logname: str = os.path.normpath(os.path.join(log_dirname, LogInfo["basename"]))
         formatter: logging.Formatter = logging.Formatter(
-            '%(asctime)s - %(filename)s:%(lineno)d - [%(levelname)s] - %(message)s'
+            "%(asctime)s - %(filename)s:%(lineno)d - [%(levelname)s] - %(message)s"
         )
 
         self.logger: logging.Logger = logging.getLogger()
@@ -39,9 +40,14 @@ class Log:
         ch.setLevel(logging.INFO)
         ch.setFormatter(formatter)
 
-        rfh: logging.handlers.RotatingFileHandler = logging.handlers.RotatingFileHandler(
-            filename=logname, mode='a', maxBytes=LogInfo["filesize"],
-            backupCount=LogInfo["fbkcount"], encoding='utf-8'
+        rfh: logging.handlers.RotatingFileHandler = (
+            logging.handlers.RotatingFileHandler(
+                filename=logname,
+                mode="a",
+                maxBytes=LogInfo["filesize"],
+                backupCount=LogInfo["fbkcount"],
+                encoding="utf-8",
+            )
         )
         rfh.setLevel(logging.INFO)
         rfh.setFormatter(formatter)

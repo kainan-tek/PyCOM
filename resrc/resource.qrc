@@ -1,8 +1,8 @@
 <RCC>
-    <qresource prefix="/icon">
+    <qresource prefix="/icons">
         <file alias="pycom">images/pycom.png</file>
     </qresource>
-    <qresource prefix="/icon">
+    <qresource prefix="/icons">
         <file alias="wechat">images/wechat.jpg</file>
     </qresource>
 </RCC>

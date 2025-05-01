@@ -47,12 +47,14 @@ class SwitchButton(QPushButton):
         painter.setPen(QPen(Qt.NoPen))
         # painter.setPen(QPen(Qt.black,2,Qt.SolidLine))
         painter.drawRoundedRect(
-            0, 0, self.bt_width, self.bt_heigh, self.bt_heigh//2, self.bt_heigh//2)
+            0, 0, self.bt_width, self.bt_heigh, self.bt_heigh // 2, self.bt_heigh // 2
+        )
 
         gap_size: int = 4
-        handle_height: int = self.bt_heigh - 2*gap_size
-        handle_x: int = self.bt_width - handle_height - \
-            gap_size if self.isChecked() else gap_size
+        handle_height: int = self.bt_heigh - 2 * gap_size
+        handle_x: int = (
+            self.bt_width - handle_height - gap_size if self.isChecked() else gap_size
+        )
         handle_y: int = gap_size
         painter.setBrush(handle_color)
         painter.setPen(QPen(Qt.NoPen))
@@ -76,7 +78,7 @@ class Example(QWidget):
         switchBtn.toggled.connect(self.onToggle)
 
         self.setGeometry(300, 300, 250, 150)
-        self.setWindowTitle('QSwitchButton')
+        self.setWindowTitle("QSwitchButton")
         self.show()
 
     def onToggle(self, checked: bool) -> None:
@@ -90,12 +92,12 @@ class Example(QWidget):
             None
         """
         if checked:
-            self.setWindowTitle('Button Opened')
+            self.setWindowTitle("Button Opened")
         else:
-            self.setWindowTitle('Button Closed')
+            self.setWindowTitle("Button Closed")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     ex = Example()
     sys.exit(app.exec())

@@ -11,7 +11,7 @@ class JsonFlag(Enum):
     EMPTY_DICT = 4
 
 
-class JsonParser():
+class JsonParser:
     def __init__(self, _file):
         self.file: str = _file
 
@@ -31,15 +31,24 @@ class JsonParser():
             return JsonFlag.NO_FILE, json_dict  # file not exists, return no file flag
 
         try:
-            with open(self.file, mode='r', encoding=encode, newline='') as fp:
+            with open(self.file, mode="r", encoding=encode, newline="") as fp:
                 json_dict = json.load(fp)
         except Exception:
-            return JsonFlag.ERR_OPEN_R, json_dict  # error occurs, return error open read flag
+            return (
+                JsonFlag.ERR_OPEN_R,
+                json_dict,
+            )  # error occurs, return error open read flag
 
         if not json_dict:
-            return (JsonFlag.EMPTY_DICT, json_dict)  # json dict is empty, return empty dict flag
+            return (
+                JsonFlag.EMPTY_DICT,
+                json_dict,
+            )  # json dict is empty, return empty dict flag
 
-        return JsonFlag.SUCCESS, json_dict  # read json successfully, return success flag
+        return (
+            JsonFlag.SUCCESS,
+            json_dict,
+        )  # read json successfully, return success flag
 
     def file_write(self, _json_dict: dict = {}, encode: str = "utf-8") -> JsonFlag:
         """
@@ -56,7 +65,7 @@ class JsonParser():
             return JsonFlag.NO_FILE  # file not exists, return no file flag
 
         try:
-            with open(self.file, mode='w+', encoding=encode) as fp:
+            with open(self.file, mode="w+", encoding=encode) as fp:
                 json.dump(_json_dict, fp, indent=4, ensure_ascii=False)
         except Exception:
             return JsonFlag.ERR_OPEN_W  # error occurs, return error open write flag

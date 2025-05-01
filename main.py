@@ -10,10 +10,16 @@ import serial
 import serial.tools.list_ports
 from PySide6.QtCore import QEvent, QMutex, QThread, QTimer, Signal, QObject
 from PySide6.QtGui import QIcon, QIntValidator, Qt, QTextCursor
-from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox, QLineEdit
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QLineEdit,
+)
 
 import globalvar as gl
-import resrc.resource_rc
 from about import About
 from jsonparser import JsonFlag, JsonParser
 from logwrapper import log_inst
@@ -79,10 +85,33 @@ class MainWindow(QMainWindow):
         self.recthread.start()
 
         self.key_limits: list = [
-            Qt.Key_0, Qt.Key_1, Qt.Key_2, Qt.Key_3, Qt.Key_4, Qt.Key_5, Qt.Key_6, Qt.Key_7, Qt.Key_8,
-            Qt.Key_9, Qt.Key_A, Qt.Key_B, Qt.Key_C, Qt.Key_D, Qt.Key_E, Qt.Key_F, Qt.Key_Space,
-            Qt.Key_Backspace, Qt.Key_Delete, Qt.Key_Right, Qt.Key_Left, Qt.Key_Up, Qt.Key_Down,
-            Qt.Key_Control, Qt.Key_Shift, Qt.Key_Copy, Qt.Key_Paste
+            Qt.Key_0,
+            Qt.Key_1,
+            Qt.Key_2,
+            Qt.Key_3,
+            Qt.Key_4,
+            Qt.Key_5,
+            Qt.Key_6,
+            Qt.Key_7,
+            Qt.Key_8,
+            Qt.Key_9,
+            Qt.Key_A,
+            Qt.Key_B,
+            Qt.Key_C,
+            Qt.Key_D,
+            Qt.Key_E,
+            Qt.Key_F,
+            Qt.Key_Space,
+            Qt.Key_Backspace,
+            Qt.Key_Delete,
+            Qt.Key_Right,
+            Qt.Key_Left,
+            Qt.Key_Up,
+            Qt.Key_Down,
+            Qt.Key_Control,
+            Qt.Key_Shift,
+            Qt.Key_Copy,
+            Qt.Key_Paste,
         ]
 
     def gui_init(self) -> None:
@@ -100,8 +129,8 @@ class MainWindow(QMainWindow):
             None
         """
         # Set window title and icon
-        self.setWindowTitle(f'{gl.GuiInfo["proj"]} {gl.GuiInfo["version"]}')
-        self.setWindowIcon(QIcon(":/icon/pycom"))
+        self.setWindowTitle(f"{gl.GuiInfo['proj']} {gl.GuiInfo['version']}")
+        self.setWindowIcon(QIcon(":/icons/pycom"))
 
         if self.switchbt_enable:
             # enable switch button
@@ -113,10 +142,10 @@ class MainWindow(QMainWindow):
         else:
             # disable switch button
             self.ui.label_switch.setHidden(True)
-            self.ui.pushButton_Open.clicked.connect(self.open_port)  # Connect open button
-            self.ui.pushButton_Close.clicked.connect(self.close_port)  # Connect close button
-            self.ui.pushButton_Open.setEnabled(True)  # Enable open button
-            self.ui.pushButton_Close.setDisabled(True)  # Disable close button
+            self.ui.pushButton_Open.clicked.connect(self.open_port)
+            self.ui.pushButton_Close.clicked.connect(self.close_port)
+            self.ui.pushButton_Open.setEnabled(True)
+            self.ui.pushButton_Close.setDisabled(True)
 
         # Menu setup: connect actions to corresponding functions
         self.ui.actionOpen_File.triggered.connect(self.action_open_file)
@@ -129,15 +158,15 @@ class MainWindow(QMainWindow):
         self.ui.actionAbout.triggered.connect(self.action_about)
 
         # Serial port setup: configure serial port options
-        self.ui.comboBox_BRate.addItems(gl.SerialInfo["baudrate"])  # Add baud rate options
-        self.ui.comboBox_BRate.setCurrentText('115200')  # Set default baud rate
-        self.ui.comboBox_BSize.addItems(gl.SerialInfo["bytesize"])  # Add byte size options
-        self.ui.comboBox_BSize.setCurrentText('8')  # Set default byte size
-        self.ui.comboBox_SBit.addItems(gl.SerialInfo["stopbit"])  # Add stop bit options
-        self.ui.comboBox_SBit.setCurrentText('1')  # Set default stop bit
-        self.ui.comboBox_PBit.addItems(gl.SerialInfo["paritybit"])  # Add parity bit options
-        self.ui.comboBox_PBit.setCurrentText('None')  # Set default parity bit
-        self.ui.pushButton_Check.clicked.connect(self.parse_ports)  # Connect check button
+        self.ui.comboBox_BRate.addItems(gl.SerialInfo["baudrate"])
+        self.ui.comboBox_BRate.setCurrentText("115200")
+        self.ui.comboBox_BSize.addItems(gl.SerialInfo["bytesize"])
+        self.ui.comboBox_BSize.setCurrentText("8")
+        self.ui.comboBox_SBit.addItems(gl.SerialInfo["stopbit"])
+        self.ui.comboBox_SBit.setCurrentText("1")
+        self.ui.comboBox_PBit.addItems(gl.SerialInfo["paritybit"])
+        self.ui.comboBox_PBit.setCurrentText("None")
+        self.ui.pushButton_Check.clicked.connect(self.parse_ports)
 
         # Single send setup: connect single send options
         self.ui.pushButton_sSend.clicked.connect(self.single_data_send)
@@ -185,20 +214,7 @@ class MainWindow(QMainWindow):
         self.ui.pushButton_m6.setDisabled(True)
         self.ui.pushButton_fSend.setDisabled(True)
 
-    def send_clear(self) -> None:
-        """
-        Clear the single send text edit and move the cursor to the start.
-
-        Args:
-            None
-
-        Returns:
-            None
-        """
-        self.ui.textEdit_sSend.clear()
-        self.ui.textEdit_sSend.moveCursor(QTextCursor.Start)
-
-########################## port function ############################
+    ########################## port function ############################
 
     def parse_ports(self) -> bool:
         """
@@ -272,9 +288,13 @@ class MainWindow(QMainWindow):
             except Exception as err:
                 self.log.error(f"Error of opening port, err: {str(err)}")
                 if "PermissionError" in str(err):
-                    self.msgbox.critical(self, "PermissionError", "The selected port may be occupied!")
+                    self.msgbox.critical(
+                        self, "PermissionError", "The selected port may be occupied!"
+                    )
                 else:
-                    self.msgbox.critical(self, "Error", "Can not open the port with these params")
+                    self.msgbox.critical(
+                        self, "Error", "Can not open the port with these params"
+                    )
                 return False
         if self.ser_instance.isOpen():
             if not self.switchbt_enable:
@@ -360,7 +380,7 @@ class MainWindow(QMainWindow):
             self.ui.pushButton_m6.setDisabled(True)
             self.ui.pushButton_fSend.setDisabled(True)
 
-########################## single and multi send function ############################
+    ########################## single and multi send function ############################
 
     def data_send(self) -> bool:
         """
@@ -415,7 +435,7 @@ class MainWindow(QMainWindow):
             return False
         return True
 
-########################## single send function ############################
+    ########################## single send function ############################
 
     def send_clear(self) -> None:
         """
@@ -430,6 +450,7 @@ class MainWindow(QMainWindow):
             None
         """
         self.ui.textEdit_sSend.clear()
+        self.ui.textEdit_sSend.moveCursor(QTextCursor.Start)
         self.total_sendsize = 0
         self.update_rwsize_status(self.total_sendsize, self.total_recsize)
 
@@ -477,7 +498,7 @@ class MainWindow(QMainWindow):
             bytes_text: bytes = bytes(int_list)
         else:
             if newline_state:
-                text = text + '\r\n'
+                text = text + "\r\n"
             bytes_text: bytes = text.encode(self.encode_info, "replace")
 
         sendsize: int = self.ser_instance.write(bytes_text)
@@ -544,10 +565,16 @@ class MainWindow(QMainWindow):
             str_text: str = text.encode(self.encode_info, "replace").hex(" ")
         else:
             if not self.is_send_hex_mode(text):
-                self.msgbox.warning(self, "Warning", "Incorrect hex format data, can't convert to text format")
+                self.msgbox.warning(
+                    self,
+                    "Warning",
+                    "Incorrect hex format data, can't convert to text format",
+                )
                 self.ui.checkBox_sHexmode.setChecked(True)
                 return  # incorrect hex format
-            str_text: str = bytes.fromhex(text.replace(" ", "")).decode(self.encode_info, "replace")
+            str_text: str = bytes.fromhex(text.replace(" ", "")).decode(
+                self.encode_info, "replace"
+            )
 
         self.ui.textEdit_sSend.clear()
         self.ui.textEdit_sSend.insertPlainText(str_text)
@@ -565,13 +592,21 @@ class MainWindow(QMainWindow):
         Returns:
             bool: True if the event is intercepted, False otherwise.
         """
-        if event.type() == QEvent.KeyPress and obj is self.ui.textEdit_sSend and self.ui.checkBox_sHexmode.isChecked():
-            if not event.key() in self.key_limits and not (event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_V):
-                self.msgbox.warning(self, "Warning", "Hex mode now!\nPlease input 0-9, a-f, A-F")
+        if (
+            event.type() == QEvent.KeyPress
+            and obj is self.ui.textEdit_sSend
+            and self.ui.checkBox_sHexmode.isChecked()
+        ):
+            if event.key() not in self.key_limits and not (
+                event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_V
+            ):
+                self.msgbox.warning(
+                    self, "Warning", "Hex mode now!\nPlease input 0-9, a-f, A-F"
+                )
                 return True
         return super().eventFilter(obj, event)
 
-########################## multi send function ############################
+    ########################## multi send function ############################
 
     def multi_send_m1(self):
         self.mx_common_send("1", self.ui.lineEdit_m1)
@@ -619,7 +654,9 @@ class MainWindow(QMainWindow):
                 if not self.is_send_hex_mode(text):
                     if self.ui.checkBox_mCycle.isChecked():
                         self.ui.checkBox_mCycle.click()
-                    self.msgbox.warning(self, "Warning", f"Not correct hex format in Edit {seq}")
+                    self.msgbox.warning(
+                        self, "Warning", f"Not correct hex format in Edit {seq}"
+                    )
                     return False
                 text_list: list[str] = re.findall(".{2}", text.replace(" ", ""))
                 str_text: str = " ".join(text_list)
@@ -632,7 +669,7 @@ class MainWindow(QMainWindow):
             bytes_text = bytes(int_list)
         else:
             if newline_state:
-                text = text+'\r\n'
+                text = text + "\r\n"
             bytes_text = text.encode(self.encode_info, "replace")
 
         sendsize: int = self.ser_instance.write(bytes_text)
@@ -651,12 +688,24 @@ class MainWindow(QMainWindow):
         Returns:
             None
         """
-        self.multi_dict["m1"][0] = 1 if self.ui.checkBox_m1.isChecked() and self.ui.lineEdit_m1.text() else 0
-        self.multi_dict["m2"][0] = 1 if self.ui.checkBox_m2.isChecked() and self.ui.lineEdit_m2.text() else 0
-        self.multi_dict["m3"][0] = 1 if self.ui.checkBox_m3.isChecked() and self.ui.lineEdit_m3.text() else 0
-        self.multi_dict["m4"][0] = 1 if self.ui.checkBox_m4.isChecked() and self.ui.lineEdit_m4.text() else 0
-        self.multi_dict["m5"][0] = 1 if self.ui.checkBox_m5.isChecked() and self.ui.lineEdit_m5.text() else 0
-        self.multi_dict["m6"][0] = 1 if self.ui.checkBox_m6.isChecked() and self.ui.lineEdit_m6.text() else 0
+        self.multi_dict["m1"][0] = (
+            1 if self.ui.checkBox_m1.isChecked() and self.ui.lineEdit_m1.text() else 0
+        )
+        self.multi_dict["m2"][0] = (
+            1 if self.ui.checkBox_m2.isChecked() and self.ui.lineEdit_m2.text() else 0
+        )
+        self.multi_dict["m3"][0] = (
+            1 if self.ui.checkBox_m3.isChecked() and self.ui.lineEdit_m3.text() else 0
+        )
+        self.multi_dict["m4"][0] = (
+            1 if self.ui.checkBox_m4.isChecked() and self.ui.lineEdit_m4.text() else 0
+        )
+        self.multi_dict["m5"][0] = (
+            1 if self.ui.checkBox_m5.isChecked() and self.ui.lineEdit_m5.text() else 0
+        )
+        self.multi_dict["m6"][0] = (
+            1 if self.ui.checkBox_m6.isChecked() and self.ui.lineEdit_m6.text() else 0
+        )
 
         for item in self.multi_dict:
             if self.multi_dict[item][0] == 1 and self.multi_dict[item][1] == 0:
@@ -669,7 +718,11 @@ class MainWindow(QMainWindow):
                 self.multi_dict[item][1] = 1
                 break
 
-        if all(self.multi_dict[item][1] for item in self.multi_dict if self.multi_dict[item][0]):
+        if all(
+            self.multi_dict[item][1]
+            for item in self.multi_dict
+            if self.multi_dict[item][0]
+        ):
             for item in self.multi_dict:
                 self.multi_dict[item][1] = 0
 
@@ -696,14 +749,14 @@ class MainWindow(QMainWindow):
                 self.ui.checkBox_mCycle.setChecked(False)
                 return False
             # [0,0] first 0 means checked status, second 0 means send status
-            self.multi_dict = {f"m{i+1}": [0, 0] for i in range(6)}
+            self.multi_dict = {f"m{i + 1}": [0, 0] for i in range(6)}
             self.send_timer.start(int(cycle_text.strip()))
             self.ui.lineEdit_mCycle.setEnabled(False)
         else:
             self.send_timer.stop()
             self.ui.lineEdit_mCycle.setEnabled(True)
 
-########################## file send function ############################
+    ########################## file send function ############################
 
     def file_send_select(self) -> bool:
         """
@@ -719,7 +772,7 @@ class MainWindow(QMainWindow):
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.ExistingFile)
         dialog.setViewMode(QFileDialog.Detail)
-        dialog.setWindowTitle('Open File')
+        dialog.setWindowTitle("Open File")
         dialog.setNameFilter("TXT File(*.txt *.json)")
         if not dialog.exec():
             return False
@@ -741,9 +794,9 @@ class MainWindow(QMainWindow):
         Returns:
             str: The predicted encoding of the file.
         """
-        with open(file, 'rb') as f:
+        with open(file, "rb") as f:
             encodeinfo = chardet.detect(f.read())
-        return encodeinfo['encoding']
+        return encodeinfo["encoding"]
 
     def file_send(self) -> bool:
         """
@@ -772,7 +825,7 @@ class MainWindow(QMainWindow):
             jsparser: JsonParser = JsonParser(sfile)
             ret: tuple[JsonFlag, dict] = jsparser.file_read(encode)
             if not ret[0].value == JsonFlag.SUCCESS.value:
-                msgtext: str = f'Error of reading json fie, err: {ret[0].name}'
+                msgtext: str = f"Error of reading json fie, err: {ret[0].name}"
                 self.log.error(msgtext)
                 self.msgbox.critical(self, "Error", msgtext)
                 return False
@@ -783,17 +836,23 @@ class MainWindow(QMainWindow):
                 for i in range(len(js_dict["datas"])):
                     str_data: str = js_dict["datas"][i]["data"].replace(" ", "")
                     if not all(item in string.hexdigits for item in str_data):
-                        self.msgbox.critical(self, "Error", "Not every item is hex digit, please check.")
+                        self.msgbox.critical(
+                            self, "Error", "Not every item is hex digit, please check."
+                        )
                         return False
                     text_lst: list[str] = re.findall(".{2}", str_data)
                     int_lst: list[int] = [int(item, 16) for item in text_lst]
                     js_dict["datas"][i]["data"] = bytes(int_lst)
-                self.js_send_list = [[js_dict["datas"][i]["select"], 1, 0, js_dict["datas"][i]["data"]]
-                                     for i in range(len(js_dict["datas"]))]
+                self.js_send_list = [
+                    [js_dict["datas"][i]["select"], 1, 0, js_dict["datas"][i]["data"]]
+                    for i in range(len(js_dict["datas"]))
+                ]
             else:
                 # self.js_send_list[[is_select, is_hexmode, is_sent, data]...]
-                self.js_send_list = [[js_dict["datas"][i]["select"], 0, 0, js_dict["datas"][i]["data"]]
-                                     for i in range(len(js_dict["datas"]))]
+                self.js_send_list = [
+                    [js_dict["datas"][i]["select"], 0, 0, js_dict["datas"][i]["data"]]
+                    for i in range(len(js_dict["datas"]))
+                ]
             if cycle_time > 0:
                 self.fsend_timer.start(cycle_time)
             else:
@@ -802,21 +861,27 @@ class MainWindow(QMainWindow):
                         if item[1] == 1:  # hex mode
                             sendsize: int = self.ser_instance.write(item[3])
                         else:
-                            sendsize: int = self.ser_instance.write(item[3].encode(self.encode_info, "ignore"))
+                            sendsize: int = self.ser_instance.write(
+                                item[3].encode(self.encode_info, "ignore")
+                            )
                         self.total_sendsize += sendsize
-                        self.update_rwsize_status(self.total_sendsize, self.total_recsize)
+                        self.update_rwsize_status(
+                            self.total_sendsize, self.total_recsize
+                        )
         else:
             # for txt file
             try:
-                with open(sfile, mode='r', encoding=encode, newline='') as fp:
+                with open(sfile, mode="r", encoding=encode, newline="") as fp:
                     send_text: str = fp.read()
             except Exception as e:
                 msgtext: str = "Error of opening file"
-                self.log.error(f'{msgtext}, err: {e}')
+                self.log.error(f"{msgtext}, err: {e}")
                 self.msgbox.critical(self, "Error", msgtext)
                 return False
             if self.ser_instance.isOpen():
-                sendsize: int = self.ser_instance.write(send_text.encode(self.encode_info, "ignore"))
+                sendsize: int = self.ser_instance.write(
+                    send_text.encode(self.encode_info, "ignore")
+                )
                 self.total_sendsize += sendsize
                 self.update_rwsize_status(self.total_sendsize, self.total_recsize)
 
@@ -824,7 +889,7 @@ class MainWindow(QMainWindow):
         """
         This function iterates through the json send list and sends the selected data
         through the serial instance. It updates the send status of each data item and
-        the total send size. If all selected data items have been sent, it stops the 
+        the total send size. If all selected data items have been sent, it stops the
         file send timer.
 
         Args:
@@ -838,7 +903,9 @@ class MainWindow(QMainWindow):
                 if item[1] == 1:  # hex mode
                     sendsize: int = self.ser_instance.write(item[3])
                 else:
-                    sendsize: int = self.ser_instance.write(item[3].encode(self.encode_info, "ignore"))
+                    sendsize: int = self.ser_instance.write(
+                        item[3].encode(self.encode_info, "ignore")
+                    )
                 item[2] = 1  # mark as sent
                 self.total_sendsize += sendsize
                 self.update_rwsize_status(self.total_sendsize, self.total_recsize)
@@ -846,12 +913,12 @@ class MainWindow(QMainWindow):
         if all(item[2] == 1 for item in self.js_send_list if item[0] == 1):
             self.fsend_timer.stop()
 
-########################## receive function ############################
+    ########################## receive function ############################
 
     def receive_set_hexmode(self) -> bool:
         """
         This function checks the state of the hex mode checkbox and converts
-        the text in the receive text edit to the appropriate format. If the 
+        the text in the receive text edit to the appropriate format. If the
         text is empty, it unlocks the mutex and returns False.
 
         Args:
@@ -878,8 +945,8 @@ class MainWindow(QMainWindow):
 
     def update_receive_ui(self) -> None:
         """
-        This function updates the UI with received data from the queue. It 
-        checks the hex mode status and formats the received data accordingly, 
+        This function updates the UI with received data from the queue. It
+        checks the hex mode status and formats the received data accordingly,
         then updates the text edit and receive size status.
 
         Args:
@@ -969,7 +1036,7 @@ class MainWindow(QMainWindow):
         self.datasize_text = f"  Send: {send_sz}  |  Receive: {rec_sz}  "
         self.label_rwsize.setText(self.datasize_text)
 
-########################## menu function ############################
+    ########################## menu function ############################
 
     def action_open_file(self) -> bool:
         """
@@ -983,12 +1050,14 @@ class MainWindow(QMainWindow):
             bool: False if the file does not exist, True otherwise
         """
         if not os.path.exists(self.recdatas_file):
-            self.msgbox.information(self, "Info", "Please save a receive datas file first")
+            self.msgbox.information(
+                self, "Info", "Please save a receive datas file first"
+            )
             return False
         if "nt" in os.name:
             os.startfile(os.path.dirname(self.recdatas_file))
         else:
-            os.system(f'xdg-open {os.path.dirname(self.recdatas_file)}')
+            os.system(f"xdg-open {os.path.dirname(self.recdatas_file)}")
         return True
 
     def action_exit(self) -> None:
@@ -1048,7 +1117,7 @@ class MainWindow(QMainWindow):
         """
         Handle the close event of the MainWindow.
 
-        Interrupts and stops the running receive thread 
+        Interrupts and stops the running receive thread
         and performs cleanup before closing the window.
 
         Args:
@@ -1065,6 +1134,7 @@ class MainWindow(QMainWindow):
         self.recthread.deleteLater()
         self.about.destroy()
         super(MainWindow, self).closeEvent(event)
+
 
 ########################## Sub-thread for receiving data ############################
 
