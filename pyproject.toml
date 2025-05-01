@@ -9,3 +9,7 @@ dependencies = [
     "pyserial>=3.5",
     "pyside6>=6.9.0",
 ]
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true

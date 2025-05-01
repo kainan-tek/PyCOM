@@ -1,4 +1,7 @@
 Release Note:
+v1.3.0:
+    add uv tool and format code with ruff.
+
 v1.2.9:
     disable some button while port closed.
     update QR code.

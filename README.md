@@ -1,35 +1,21 @@
 # PyCOM
-***A python GUI tool for serial communication***   
+***A serial communication tool written with python***   
 
-## Dependencies:
-python v3.13.2  
-pyside6  
-pyserial  
-chardet  
-
-## Dependencies install cmd:
+## Steps to run the tool
 ```C
-// install package with specified tsinghua source path
-pip install pyside6==6.9.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
-pip install pyserial==3.5 -i https://pypi.tuna.tsinghua.edu.cn/simple
-pip install chardet==5.2.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
-// or install all
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+// install uv tool in windows powershell:
+irm https://astral.sh/uv/install.ps1 | iex
+// set up environment with below cmd on PyCOM path:
+uv sync
+// run the python file
+uv run python main.py
 ```
 
-## pack with nuitka
+## Package into PyCOM.exe with nuitka
 ```C
 // install nuitka  
-pip install nuitka==2.7 -i https://pypi.tuna.tsinghua.edu.cn/simple
+uv pip install nuitka
 // generate exe
 nuitka --msvc=latest --standalone --follow-imports --windows-console-mode=disable --show-progress --show-memory --enable-plugin=pyside6 --windows-icon-from-ico=.\resrc\images\pycom.ico --include-data-dir=.\demo=.\demo --include-data-files=.\ReleaseNote.txt=ReleaseNote.txt main.py -o PyCOM.exe
 // run the executable file: PyCOM.exe
-```
-
-## pack with pyinstaller
-```C
-// install pyinstaller  
-pip install pyinstaller==6.13.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
-// generate exe
-pyinstaller --onefile --noconsole --clean -i ./resrc/images/pycom.ico main.py -o PyCOM.exe
 ```
