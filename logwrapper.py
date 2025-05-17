@@ -40,14 +40,12 @@ class Log:
         ch.setLevel(logging.INFO)
         ch.setFormatter(formatter)
 
-        rfh: logging.handlers.RotatingFileHandler = (
-            logging.handlers.RotatingFileHandler(
-                filename=logname,
-                mode="a",
-                maxBytes=LogInfo["filesize"],
-                backupCount=LogInfo["fbkcount"],
-                encoding="utf-8",
-            )
+        rfh: RotatingFileHandler = RotatingFileHandler(
+            filename=logname,
+            mode="a",
+            maxBytes=LogInfo["filesize"],
+            backupCount=LogInfo["fbkcount"],
+            encoding="utf-8",
         )
         rfh.setLevel(logging.INFO)
         rfh.setFormatter(formatter)

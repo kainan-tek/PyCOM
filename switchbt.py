@@ -1,11 +1,12 @@
 import sys
+from typing import Optional
 from PySide6.QtCore import Qt, QSize, QEvent
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton
 from PySide6.QtGui import QPainter, QColor, QPen
 
 
 class SwitchButton(QPushButton):
-    def __init__(self, parent: QWidget = None) -> None:
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         """
         Initialize the SwitchButton.
 
@@ -33,7 +34,7 @@ class SwitchButton(QPushButton):
             None
         """
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         # bg_color: QColor = QColor(197, 197, 197)
         bg_color: QColor = QColor(212, 215, 220)
         handle_color: QColor = QColor(255, 255, 255)
@@ -44,7 +45,7 @@ class SwitchButton(QPushButton):
             handle_color = QColor(255, 255, 255)
 
         painter.setBrush(bg_color)
-        painter.setPen(QPen(Qt.NoPen))
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
         # painter.setPen(QPen(Qt.black,2,Qt.SolidLine))
         painter.drawRoundedRect(
             0, 0, self.bt_width, self.bt_heigh, self.bt_heigh // 2, self.bt_heigh // 2
@@ -57,7 +58,7 @@ class SwitchButton(QPushButton):
         )
         handle_y: int = gap_size
         painter.setBrush(handle_color)
-        painter.setPen(QPen(Qt.NoPen))
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
         painter.drawEllipse(handle_x, handle_y, handle_height, handle_height)
 
 

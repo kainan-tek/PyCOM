@@ -8,8 +8,8 @@ import time
 import chardet
 import serial
 import serial.tools.list_ports
-from PySide6.QtCore import QEvent, QMutex, QThread, QTimer, Signal, QObject
-from PySide6.QtGui import QIcon, QIntValidator, Qt, QTextCursor
+from PySide6.QtCore import QEvent, QMutex, QThread, QTimer, Signal, QObject, Qt
+from PySide6.QtGui import QIcon, QIntValidator, QTextCursor, QKeyEvent, QCloseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -80,38 +80,36 @@ class MainWindow(QMainWindow):
         self.fsend_timer: QTimer = QTimer()  # The timer for the json file data sending
         self.fsend_timer.timeout.connect(self.jsfile_data_send)
         self.recthread: WorkThread = WorkThread(self.ser_instance)
-        self.recthread.rec_signal.connect(self.update_receive_ui)
-        self.recthread.close_signal.connect(self.post_close_port)
+        self.recthread.data_rec_signal.connect(self.update_receive_ui)
+        self.recthread.port_closed_signal.connect(self.post_close_port)
         self.recthread.start()
 
         self.key_limits: list = [
-            Qt.Key_0,
-            Qt.Key_1,
-            Qt.Key_2,
-            Qt.Key_3,
-            Qt.Key_4,
-            Qt.Key_5,
-            Qt.Key_6,
-            Qt.Key_7,
-            Qt.Key_8,
-            Qt.Key_9,
-            Qt.Key_A,
-            Qt.Key_B,
-            Qt.Key_C,
-            Qt.Key_D,
-            Qt.Key_E,
-            Qt.Key_F,
-            Qt.Key_Space,
-            Qt.Key_Backspace,
-            Qt.Key_Delete,
-            Qt.Key_Right,
-            Qt.Key_Left,
-            Qt.Key_Up,
-            Qt.Key_Down,
-            Qt.Key_Control,
-            Qt.Key_Shift,
-            Qt.Key_Copy,
-            Qt.Key_Paste,
+            Qt.Key.Key_0,
+            Qt.Key.Key_1,
+            Qt.Key.Key_2,
+            Qt.Key.Key_3,
+            Qt.Key.Key_4,
+            Qt.Key.Key_5,
+            Qt.Key.Key_6,
+            Qt.Key.Key_7,
+            Qt.Key.Key_8,
+            Qt.Key.Key_9,
+            Qt.Key.Key_A,
+            Qt.Key.Key_B,
+            Qt.Key.Key_C,
+            Qt.Key.Key_D,
+            Qt.Key.Key_E,
+            Qt.Key.Key_F,
+            Qt.Key.Key_Space,
+            Qt.Key.Key_Backspace,
+            Qt.Key.Key_Delete,
+            Qt.Key.Key_Right,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Control,
+            Qt.Key.Key_Shift,
         ]
 
     def gui_init(self) -> None:
@@ -254,11 +252,11 @@ class MainWindow(QMainWindow):
             None
         """
         if self.switchBt_OnOff.isChecked():
-            self.open_port()
+            if not self.open_port():
+                self.switchBt_OnOff.setChecked(False)
         else:
             self.close_port()
 
-    # if disable switch button
     def open_port(self) -> bool:
         """
         Open the serial port.
@@ -279,10 +277,10 @@ class MainWindow(QMainWindow):
         self.ser_instance.timeout = gl.SerialInfo["timeout"]
 
         if not self.ser_instance.port:
-            self.msgbox.information(self, "Info", "No port be selected")
+            self.msgbox.warning(self, "Info", "No port be selected")
             return False
 
-        if not self.ser_instance.isOpen():
+        if not self.ser_instance.is_open:
             try:
                 self.ser_instance.open()
             except Exception as err:
@@ -296,7 +294,7 @@ class MainWindow(QMainWindow):
                         self, "Error", "Can not open the port with these params"
                     )
                 return False
-        if self.ser_instance.isOpen():
+        if self.ser_instance.is_open:
             if not self.switchbt_enable:
                 self.ui.pushButton_Open.setDisabled(True)
                 self.ui.pushButton_Close.setEnabled(True)
@@ -341,9 +339,9 @@ class MainWindow(QMainWindow):
         self.fsend_timer.stop()
 
         # Check if the serial instance is open
-        if self.ser_instance.isOpen():
+        if self.ser_instance.is_open:
             # Trigger the serial close function in receive thread
-            self.recthread.port_close_flag = True
+            self.recthread.close_port()
             # Note: Closing the serial directly here may cause a crash
             # self.ser_instance.close()
 
@@ -359,7 +357,7 @@ class MainWindow(QMainWindow):
         Returns:
             None
         """
-        if not self.ser_instance.isOpen():
+        if not self.ser_instance.is_open:
             if not self.switchbt_enable:
                 self.ui.pushButton_Open.setEnabled(True)
                 self.ui.pushButton_Close.setDisabled(True)
@@ -410,10 +408,11 @@ class MainWindow(QMainWindow):
 
         # Check if single cycle send is activated
         if self.ui.checkBox_sCycle.isChecked():
-            return self.single_data_send()
+            self.single_data_send()
         # Check if multi cycle send is activated
         elif self.ui.checkBox_mCycle.isChecked():
-            return self.multi_cycle_send()
+            self.multi_cycle_send()
+        return True
 
     def is_send_hex_mode(self, text: str) -> bool:
         """
@@ -450,7 +449,7 @@ class MainWindow(QMainWindow):
             None
         """
         self.ui.textEdit_sSend.clear()
-        self.ui.textEdit_sSend.moveCursor(QTextCursor.Start)
+        self.ui.textEdit_sSend.moveCursor(QTextCursor.MoveOperation.Start)
         self.total_sendsize = 0
         self.update_rwsize_status(self.total_sendsize, self.total_recsize)
 
@@ -472,7 +471,7 @@ class MainWindow(QMainWindow):
         newline_state: bool = self.ui.checkBox_sNewline.isChecked()
         text: str = self.ui.textEdit_sSend.toPlainText()
 
-        if not self.ser_instance.isOpen():
+        if not self.ser_instance.is_open:
             self.msgbox.information(self, "Info", "Please open a serial port first")
             return False
         if not text and not newline_state:
@@ -501,9 +500,11 @@ class MainWindow(QMainWindow):
                 text = text + "\r\n"
             bytes_text: bytes = text.encode(self.encode_info, "replace")
 
-        sendsize: int = self.ser_instance.write(bytes_text)
+        sendsize_raw = self.ser_instance.write(bytes_text)
+        sendsize: int = sendsize_raw if sendsize_raw is not None else 0
         self.total_sendsize += sendsize
         self.update_rwsize_status(self.total_sendsize, self.total_recsize)
+        return True
 
     def send_set_cyclemode(self) -> bool:
         """
@@ -523,7 +524,7 @@ class MainWindow(QMainWindow):
             msg: str = ""
             cycle_text = self.ui.lineEdit_sCycle.text()
             send_text = self.ui.textEdit_sSend.toPlainText()
-            if not self.ser_instance.isOpen():
+            if not self.ser_instance.is_open:
                 msg = "Please open a port first"
             elif not cycle_text:
                 msg = "Please set cycle time first"
@@ -593,17 +594,20 @@ class MainWindow(QMainWindow):
             bool: True if the event is intercepted, False otherwise.
         """
         if (
-            event.type() == QEvent.KeyPress
+            event.type() == QEvent.Type.KeyPress
             and obj is self.ui.textEdit_sSend
             and self.ui.checkBox_sHexmode.isChecked()
         ):
-            if event.key() not in self.key_limits and not (
-                event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_V
-            ):
-                self.msgbox.warning(
-                    self, "Warning", "Hex mode now!\nPlease input 0-9, a-f, A-F"
-                )
-                return True
+            key_event = event if isinstance(event, QKeyEvent) else None
+            if key_event:
+                if key_event.key() not in self.key_limits and not (
+                    key_event.modifiers() == Qt.KeyboardModifier.ControlModifier
+                    and key_event.key() == Qt.Key.Key_V
+                ):
+                    self.msgbox.warning(
+                        self, "Warning", "Hex mode now!\nPlease input 0-9, a-f, A-F"
+                    )
+                    return True
         return super().eventFilter(obj, event)
 
     ########################## multi send function ############################
@@ -643,7 +647,7 @@ class MainWindow(QMainWindow):
         text = line_edit.text()
         newline_state = self.ui.checkBox_mNewLine.isChecked()
 
-        if not self.ser_instance.isOpen():
+        if not self.ser_instance.is_open:
             self.msgbox.information(self, "Info", "Please open a serial port first")
             return False
         if not text and not newline_state:
@@ -672,9 +676,11 @@ class MainWindow(QMainWindow):
                 text = text + "\r\n"
             bytes_text = text.encode(self.encode_info, "replace")
 
-        sendsize: int = self.ser_instance.write(bytes_text)
+        sendsize_raw = self.ser_instance.write(bytes_text)
+        sendsize: int = sendsize_raw if sendsize_raw is not None else 0
         self.total_sendsize += sendsize
         self.update_rwsize_status(self.total_sendsize, self.total_recsize)
+        return True
 
     def multi_cycle_send(self) -> None:
         """
@@ -740,7 +746,7 @@ class MainWindow(QMainWindow):
         if self.ui.checkBox_mCycle.isChecked():
             msg: str = ""
             cycle_text = self.ui.lineEdit_mCycle.text()
-            if not self.ser_instance.isOpen():
+            if not self.ser_instance.is_open:
                 msg = "Please open a port first"
             elif not cycle_text:
                 msg = "Please set cycle time first"
@@ -755,6 +761,7 @@ class MainWindow(QMainWindow):
         else:
             self.send_timer.stop()
             self.ui.lineEdit_mCycle.setEnabled(True)
+        return True
 
     ########################## file send function ############################
 
@@ -770,8 +777,8 @@ class MainWindow(QMainWindow):
 
         """
         dialog = QFileDialog(self)
-        dialog.setFileMode(QFileDialog.ExistingFile)
-        dialog.setViewMode(QFileDialog.Detail)
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dialog.setViewMode(QFileDialog.ViewMode.Detail)
         dialog.setWindowTitle("Open File")
         dialog.setNameFilter("TXT File(*.txt *.json)")
         if not dialog.exec():
@@ -783,6 +790,7 @@ class MainWindow(QMainWindow):
             return False
         self.log.info(f"send file: {file_name}")
         self.ui.lineEdit_fFile.setText(file_name)
+        return True
 
     def predict_encoding(self, file: str) -> str:
         """
@@ -796,7 +804,10 @@ class MainWindow(QMainWindow):
         """
         with open(file, "rb") as f:
             encodeinfo = chardet.detect(f.read())
-        return encodeinfo["encoding"]
+        encoding = encodeinfo["encoding"]
+        if encoding is None:
+            encoding = "utf-8"
+        return encoding
 
     def file_send(self) -> bool:
         """
@@ -808,7 +819,7 @@ class MainWindow(QMainWindow):
         Returns:
             bool: True if the file is sent successfully, False otherwise
         """
-        if not self.ser_instance.isOpen():
+        if not self.ser_instance.is_open:
             self.msgbox.information(self, "Info", "Please open serial port first")
             return False
 
@@ -859,10 +870,16 @@ class MainWindow(QMainWindow):
                 for item in self.js_send_list:
                     if item[0] == 1:  # selected
                         if item[1] == 1:  # hex mode
-                            sendsize: int = self.ser_instance.write(item[3])
+                            sendsize_raw = self.ser_instance.write(item[3])
+                            sendsize: int = (
+                                sendsize_raw if sendsize_raw is not None else 0
+                            )
                         else:
-                            sendsize: int = self.ser_instance.write(
+                            sendsize_raw = self.ser_instance.write(
                                 item[3].encode(self.encode_info, "ignore")
+                            )
+                            sendsize: int = (
+                                sendsize_raw if sendsize_raw is not None else 0
                             )
                         self.total_sendsize += sendsize
                         self.update_rwsize_status(
@@ -878,12 +895,14 @@ class MainWindow(QMainWindow):
                 self.log.error(f"{msgtext}, err: {e}")
                 self.msgbox.critical(self, "Error", msgtext)
                 return False
-            if self.ser_instance.isOpen():
-                sendsize: int = self.ser_instance.write(
+            if self.ser_instance.is_open:
+                sendsize_raw = self.ser_instance.write(
                     send_text.encode(self.encode_info, "ignore")
                 )
+                sendsize: int = sendsize_raw if sendsize_raw is not None else 0
                 self.total_sendsize += sendsize
                 self.update_rwsize_status(self.total_sendsize, self.total_recsize)
+        return True
 
     def jsfile_data_send(self) -> None:
         """
@@ -901,11 +920,13 @@ class MainWindow(QMainWindow):
         for item in self.js_send_list:
             if item[0] == 1 and item[2] == 0:  # selected and not sent
                 if item[1] == 1:  # hex mode
-                    sendsize: int = self.ser_instance.write(item[3])
+                    sendsize_raw = self.ser_instance.write(item[3])
+                    sendsize: int = sendsize_raw if sendsize_raw is not None else 0
                 else:
-                    sendsize: int = self.ser_instance.write(
+                    sendsize_raw = self.ser_instance.write(
                         item[3].encode(self.encode_info, "ignore")
                     )
+                    sendsize: int = sendsize_raw if sendsize_raw is not None else 0
                 item[2] = 1  # mark as sent
                 self.total_sendsize += sendsize
                 self.update_rwsize_status(self.total_sendsize, self.total_recsize)
@@ -939,7 +960,7 @@ class MainWindow(QMainWindow):
             str_text: str = bytes.fromhex(text).decode(self.encode_info, "replace")
         self.ui.textEdit_Receive.clear()
         self.ui.textEdit_Receive.insertPlainText(str_text)
-        self.ui.textEdit_Receive.moveCursor(QTextCursor.End)
+        self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
         self.mutex.unlock()
         return True
 
@@ -957,18 +978,18 @@ class MainWindow(QMainWindow):
         """
         self.mutex.lock()
         if not self.recthread.recqueue.empty():
-            recdatas: bytes = self.recthread.recqueue.get_nowait()
+            recdatas = self.recthread.recqueue.get_nowait()
             recsize: int = len(recdatas)
             hex_status: bool = self.ui.checkBox_RHexmode.isChecked()
             if hex_status:
-                recdatas = recdatas.hex(" ")
+                recdatas_str: str = recdatas.hex(" ")
             else:
-                recdatas = recdatas.decode(self.encode_info, "replace")
-            self.ui.textEdit_Receive.moveCursor(QTextCursor.End)
-            self.ui.textEdit_Receive.insertPlainText(recdatas)
+                recdatas_str: str = recdatas.decode(self.encode_info, "replace")
+            self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
+            self.ui.textEdit_Receive.insertPlainText(recdatas_str)
             if hex_status:
                 self.ui.textEdit_Receive.insertPlainText(" ")
-            self.ui.textEdit_Receive.moveCursor(QTextCursor.End)
+            self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
             self.total_recsize += recsize
             self.update_rwsize_status(self.total_sendsize, self.total_recsize)
         self.mutex.unlock()
@@ -987,8 +1008,8 @@ class MainWindow(QMainWindow):
             bool: True if the file is saved successfully, False otherwise
         """
         dialog = QFileDialog(self)
-        dialog.setFileMode(QFileDialog.AnyFile)
-        dialog.setViewMode(QFileDialog.Detail)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setViewMode(QFileDialog.ViewMode.Detail)
         dialog.setNameFilter("TXT File(*.txt)")
         if not dialog.exec():
             return False
@@ -1005,6 +1026,7 @@ class MainWindow(QMainWindow):
             self.log.error("Error of writing datas into file.")
             self.msgbox.critical(self, "Error", "Error of writing datas into file")
             return False
+        return True
 
     def receive_clear(self) -> None:
         """
@@ -1113,7 +1135,7 @@ class MainWindow(QMainWindow):
         self.ui.actionGBK_GB2312.setChecked(True if encode == "gbk" else False)
         self.encode_info = encode
 
-    def closeEvent(self, event: QEvent) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:
         """
         Handle the close event of the MainWindow.
 
@@ -1121,7 +1143,7 @@ class MainWindow(QMainWindow):
         and performs cleanup before closing the window.
 
         Args:
-            event (QEvent): The close event.
+            event (QCloseEvent): The close event.
 
         Returns:
             None
@@ -1140,8 +1162,8 @@ class MainWindow(QMainWindow):
 
 
 class WorkThread(QThread):
-    rec_signal: Signal = Signal()
-    close_signal: Signal = Signal()
+    data_rec_signal: Signal = Signal()
+    port_closed_signal: Signal = Signal()
 
     def __init__(self, ser: serial.Serial, parent=None) -> None:
         """
@@ -1153,40 +1175,34 @@ class WorkThread(QThread):
         """
         super(WorkThread, self).__init__(parent)
         self.ser: serial.Serial = ser
-        self.port_close_flag: bool = False
+        self.close_port_flag: bool = False
         self.recqueue: queue.Queue[bytes] = queue.Queue(50)
 
     def run(self) -> None:
         """
         Run the work thread.
-
-        Continuously read data from the serial port and put it into the
-        receive queue. If the receive queue is not empty, emit a signal to
-        notify the main window to update the receive text edit widget.
-
-        If the port close flag is set to True, close the serial port and
-        emit a signal to notify the main window that the port is closed.
-
-        Args:
-            None
-
-        Returns:
-            None
+        Continuously read data from the serial port and put it into the queue.
+        If the queue is not empty, emit the data_rec_signal signal.
+        If the close_port_flag is set, close the serial port and emit the
+        port_closed_signal signal.
         """
         while True:
-            if self.ser.isOpen():
+            if self.ser.is_open:
                 datas: bytes = self.ser.readall()
                 if datas:
                     self.recqueue.put_nowait(datas)
             if self.isInterruptionRequested():
                 break
             if not self.recqueue.empty():
-                self.rec_signal.emit()
-            if self.port_close_flag:
+                self.data_rec_signal.emit()
+            if self.close_port_flag:
                 self.ser.close()
-                self.port_close_flag = False
-                self.close_signal.emit()
+                self.close_port_flag = False
+                self.port_closed_signal.emit()
             time.sleep(0.01)
+
+    def close_port(self):
+        self.close_port_flag = True
 
 
 def main() -> int:
