@@ -24,7 +24,7 @@ from about import About
 from jsonparser import JsonFlag, JsonParser
 from logwrapper import log_inst
 from ui.mainwindow_ui import Ui_MainWindow
-from switchbt import SwitchButton
+from togglebt import ToggleButton
 
 
 class MainWindow(QMainWindow):
@@ -64,7 +64,7 @@ class MainWindow(QMainWindow):
         Returns:
             None
         """
-        self.switchbt_enable: bool = True  # Flag to enable/disable switch button
+        self.togglebt_enable: bool = True  # Flag to enable/disable toggle button
         self.total_sendsize: int = 0  # The total send size
         self.total_recsize: int = 0  # The total received size
         self.datasize_text: str = ""  # The text to show the send/receive size
@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         self.send_timer.timeout.connect(self.data_send)
         self.fsend_timer: QTimer = QTimer()  # The timer for the json file data sending
         self.fsend_timer.timeout.connect(self.jsfile_data_send)
-        self.recthread: WorkThread = WorkThread(self.ser_instance)
+        self.recthread: WorkerThread = WorkerThread(self.ser_instance)
         self.recthread.data_rec_signal.connect(self.update_receive_ui)
         self.recthread.port_closed_signal.connect(self.post_close_port)
         self.recthread.start()
@@ -130,16 +130,16 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{gl.GuiInfo['proj']} {gl.GuiInfo['version']}")
         self.setWindowIcon(QIcon(":/icons/pycom"))
 
-        if self.switchbt_enable:
-            # enable switch button
+        if self.togglebt_enable:
+            # enable toggle button
             self.ui.pushButton_Open.setHidden(True)
             self.ui.pushButton_Close.setHidden(True)
-            self.switchBt_OnOff = SwitchButton(self.ui.groupBox)
-            self.switchBt_OnOff.setGeometry(85, 265, 90, 30)
-            self.switchBt_OnOff.toggled.connect(self.port_toggle)
+            self.toggltBtn = ToggleButton(self.ui.groupBox)
+            self.toggltBtn.setGeometry(85, 265, 90, 30)
+            self.toggltBtn.toggled.connect(self.port_toggle)
         else:
-            # disable switch button
-            self.ui.label_switch.setHidden(True)
+            # disable toggle button
+            self.ui.label_togglebt.setHidden(True)
             self.ui.pushButton_Open.clicked.connect(self.open_port)
             self.ui.pushButton_Close.clicked.connect(self.close_port)
             self.ui.pushButton_Open.setEnabled(True)
@@ -235,25 +235,11 @@ class MainWindow(QMainWindow):
         self.ui.comboBox_SPort.addItems(ports_list)
         return True
 
-    # if enable switch button
+    # if enable toggle button
     def port_toggle(self) -> None:
-        """
-        Toggle the switch button to open or close the serial port.
-
-        This function is called when the switch button is clicked. If the switch
-        button is checked, it will open the serial port with the settings in the
-        combo boxes. If the switch button is unchecked, it will close the serial
-        port if it is open.
-
-        Args:
-            None
-
-        Returns:
-            None
-        """
-        if self.switchBt_OnOff.isChecked():
-            if not self.open_port():
-                self.switchBt_OnOff.setChecked(False)
+        """Toggle the serial port open and close."""
+        if self.toggltBtn.isChecked():
+            self.open_port()
         else:
             self.close_port()
 
@@ -278,6 +264,8 @@ class MainWindow(QMainWindow):
 
         if not self.ser_instance.port:
             self.msgbox.warning(self, "Info", "No port be selected")
+            if self.togglebt_enable and self.toggltBtn.isChecked():
+                self.toggltBtn.setChecked(False)
             return False
 
         if not self.ser_instance.is_open:
@@ -293,9 +281,11 @@ class MainWindow(QMainWindow):
                     self.msgbox.critical(
                         self, "Error", "Can not open the port with these params"
                     )
+                if self.togglebt_enable and self.toggltBtn.isChecked():
+                    self.toggltBtn.setChecked(False)
                 return False
         if self.ser_instance.is_open:
-            if not self.switchbt_enable:
+            if not self.togglebt_enable:
                 self.ui.pushButton_Open.setDisabled(True)
                 self.ui.pushButton_Close.setEnabled(True)
             self.ui.pushButton_Check.setDisabled(True)
@@ -341,7 +331,7 @@ class MainWindow(QMainWindow):
         # Check if the serial instance is open
         if self.ser_instance.is_open:
             # Trigger the serial close function in receive thread
-            self.recthread.close_port()
+            self.recthread.rec_close_port()
             # Note: Closing the serial directly here may cause a crash
             # self.ser_instance.close()
 
@@ -358,7 +348,10 @@ class MainWindow(QMainWindow):
             None
         """
         if not self.ser_instance.is_open:
-            if not self.switchbt_enable:
+            if self.togglebt_enable:
+                if self.toggltBtn.isChecked():
+                    self.toggltBtn.setChecked(False)
+            else:
                 self.ui.pushButton_Open.setEnabled(True)
                 self.ui.pushButton_Close.setDisabled(True)
             self.ui.pushButton_Check.setEnabled(True)
@@ -434,6 +427,20 @@ class MainWindow(QMainWindow):
             return False
         return True
 
+    def _send_bytes(self, data_bytes: bytes) -> int:
+        if not self.ser_instance.is_open:
+            return 0
+        try:
+            sendsize_raw = self.ser_instance.write(data_bytes)
+            sendsize: int = sendsize_raw if sendsize_raw is not None else 0
+            self.total_sendsize += sendsize
+            self.update_rwsize_status(self.total_sendsize, self.total_recsize)
+            return sendsize
+        except Exception as e:
+            self.log.error(f"Send data error: {str(e)}")
+            self.msgbox.warning(self, "Error", "Error of sending data")
+            return 0
+
     ########################## single send function ############################
 
     def send_clear(self) -> None:
@@ -500,10 +507,7 @@ class MainWindow(QMainWindow):
                 text = text + "\r\n"
             bytes_text: bytes = text.encode(self.encode_info, "replace")
 
-        sendsize_raw = self.ser_instance.write(bytes_text)
-        sendsize: int = sendsize_raw if sendsize_raw is not None else 0
-        self.total_sendsize += sendsize
-        self.update_rwsize_status(self.total_sendsize, self.total_recsize)
+        self._send_bytes(bytes_text)
         return True
 
     def send_set_cyclemode(self) -> bool:
@@ -676,10 +680,7 @@ class MainWindow(QMainWindow):
                 text = text + "\r\n"
             bytes_text = text.encode(self.encode_info, "replace")
 
-        sendsize_raw = self.ser_instance.write(bytes_text)
-        sendsize: int = sendsize_raw if sendsize_raw is not None else 0
-        self.total_sendsize += sendsize
-        self.update_rwsize_status(self.total_sendsize, self.total_recsize)
+        self._send_bytes(bytes_text)
         return True
 
     def multi_cycle_send(self) -> None:
@@ -938,15 +939,15 @@ class MainWindow(QMainWindow):
 
     def receive_set_hexmode(self) -> bool:
         """
-        This function checks the state of the hex mode checkbox and converts
-        the text in the receive text edit to the appropriate format. If the
-        text is empty, it unlocks the mutex and returns False.
+        Set the hex mode for the receive text edit widget.
+        If the hex mode is enabled, convert the text to hexadecimal format.
+        Otherwise, convert it back to text format.
 
         Args:
             None
 
         Returns:
-            bool: False if the text is empty, otherwise performs the conversion.
+            bool: True if the conversion is successful, False otherwise
         """
         self.mutex.lock()
         hexmode_state: bool = self.ui.checkBox_RHexmode.isChecked()
@@ -966,9 +967,9 @@ class MainWindow(QMainWindow):
 
     def update_receive_ui(self) -> None:
         """
-        This function updates the UI with received data from the queue. It
-        checks the hex mode status and formats the received data accordingly,
-        then updates the text edit and receive size status.
+        Update the receive text edit widget with the data from the receive queue.
+        This function locks the mutex to ensure thread safety, checks if there is
+        data in the queue, and updates the receive text edit widget accordingly.
 
         Args:
             None
@@ -977,7 +978,7 @@ class MainWindow(QMainWindow):
             None
         """
         self.mutex.lock()
-        if not self.recthread.recqueue.empty():
+        while not self.recthread.recqueue.empty():
             recdatas = self.recthread.recqueue.get_nowait()
             recsize: int = len(recdatas)
             hex_status: bool = self.ui.checkBox_RHexmode.isChecked()
@@ -996,16 +997,16 @@ class MainWindow(QMainWindow):
 
     def receive_save(self) -> bool:
         """
-        This function opens a file dialog to save the received data into a
-        text file. The file name and path are stored in the class variable
-        `recdatas_file` and the text is written to the file using the UTF-8
-        encoding.
+        Save the received data to a file.
+        This function opens a file dialog to select the file to save the received data.
+        If the dialog is canceled, it returns False. Otherwise, it saves the received data
+        to the selected file and returns True.
 
         Args:
             None
 
         Returns:
-            bool: True if the file is saved successfully, False otherwise
+            bool: True if the received data is saved successfully, False otherwise.
         """
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
@@ -1030,8 +1031,8 @@ class MainWindow(QMainWindow):
 
     def receive_clear(self) -> None:
         """
-        This function clears the receive text edit and resets the total receive size
-        to 0.
+        Clear the receive text edit widget and reset the total received size.
+        This function takes no arguments and returns nothing.
 
         Args:
             None
@@ -1045,15 +1046,16 @@ class MainWindow(QMainWindow):
 
     def update_rwsize_status(self, send_sz: int, rec_sz: int) -> None:
         """
-        Update receive and send size status.
+        Update the status of the send and receive data sizes in the UI.
+        This function takes the send and receive sizes as arguments and updates
+        the corresponding labels in the UI to display the sizes.
 
         Args:
-            send_sz (int): The total send size.
-            rec_sz (int): The total receive size.
+            send_sz (int): The size of the send data.
+            rec_sz (int): The size of the receive data.
 
         Returns:
             None
-
         """
         self.datasize_text = f"  Send: {send_sz}  |  Receive: {rec_sz}  "
         self.label_rwsize.setText(self.datasize_text)
@@ -1062,14 +1064,16 @@ class MainWindow(QMainWindow):
 
     def action_open_file(self) -> bool:
         """
-        This function checks if the receive data file exists and opens its
-        directory. Displays an information message if the file does not exist.
+        Open the directory where the receive datas file is saved.
+        This function checks if the receive datas file exists, and if it does,
+        it opens the directory using the appropriate command for the current
+        operating system.
 
         Args:
             None
 
         Returns:
-            bool: False if the file does not exist, True otherwise
+            bool: True if the directory is opened successfully, False otherwise
         """
         if not os.path.exists(self.recdatas_file):
             self.msgbox.information(
@@ -1084,8 +1088,9 @@ class MainWindow(QMainWindow):
 
     def action_exit(self) -> None:
         """
-        This function will stop the receive thread if it is running, and then
-        exit the application.
+        Exit the application.
+        This function checks if the receive thread is running, requests
+        interruption, quits the thread, and waits for it to finish.
 
         Args:
             None
@@ -1120,10 +1125,12 @@ class MainWindow(QMainWindow):
 
     def set_encoding(self, encode: str) -> None:
         """
-        Set the encoding of the application.
+        Set the encoding for the text in the send and receive text edit widgets.
+        This function will check the encoding and set the corresponding action
+        menu item to be checked.
 
-        Parameters:
-            encode (str): The encoding to set, can be "ascii", "utf-8", "utf-16", "utf-32", or "gbk"
+        Args:
+            encode (str): The encoding to be set.
 
         Returns:
             None
@@ -1137,10 +1144,9 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """
-        Handle the close event of the MainWindow.
-
-        Interrupts and stops the running receive thread
-        and performs cleanup before closing the window.
+        Handle the close event of the main window.
+        This function will stop the receive thread if it is running, close the serial port,
+        and then exit the application.
 
         Args:
             event (QCloseEvent): The close event.
@@ -1161,36 +1167,46 @@ class MainWindow(QMainWindow):
 ########################## Sub-thread for receiving data ############################
 
 
-class WorkThread(QThread):
+class WorkerThread(QThread):
     data_rec_signal: Signal = Signal()
     port_closed_signal: Signal = Signal()
 
     def __init__(self, ser: serial.Serial, parent=None) -> None:
         """
-        Initialize the work thread.
-
+        Initialize the WorkerThread with a serial port instance.
         Args:
             ser (serial.Serial): The serial port instance.
-            parent (QObject, optional): The parent QObject. Defaults to None.
+            parent (QWidget): The parent widget.
+        Returns:
+            None
         """
-        super(WorkThread, self).__init__(parent)
+        super(WorkerThread, self).__init__(parent)
         self.ser: serial.Serial = ser
         self.close_port_flag: bool = False
         self.recqueue: queue.Queue[bytes] = queue.Queue(50)
 
     def run(self) -> None:
         """
-        Run the work thread.
-        Continuously read data from the serial port and put it into the queue.
-        If the queue is not empty, emit the data_rec_signal signal.
-        If the close_port_flag is set, close the serial port and emit the
-        port_closed_signal signal.
+        Run the thread to continuously read data from the serial port.
+        This method will run in a loop, reading all available data from the serial port.
+        If the serial port is closed, it will emit a signal to notify that the port is closed.
+        If the thread is interrupted, it will break the loop and stop reading data.
+        If there is data in the queue, it will emit a signal to notify that data has been received.
+        If the close port flag is set, it will close the serial port and emit a signal to notify that the port is closed.
+        Args:
+            None
+        Returns:
+            None
         """
         while True:
             if self.ser.is_open:
-                datas: bytes = self.ser.readall()
-                if datas:
-                    self.recqueue.put_nowait(datas)
+                try:
+                    datas: bytes = self.ser.readall()
+                    if datas:
+                        self.recqueue.put_nowait(datas)
+                except Exception as e:
+                    log_inst.logger.error(f"Serial read error: {str(e)}")
+                    self.close_port_flag = True
             if self.isInterruptionRequested():
                 break
             if not self.recqueue.empty():
@@ -1201,19 +1217,13 @@ class WorkThread(QThread):
                 self.port_closed_signal.emit()
             time.sleep(0.01)
 
-    def close_port(self):
+    def rec_close_port(self):
         self.close_port_flag = True
 
 
 def main() -> int:
     """
-    Entry point of the application.
-
-    Create a QApplication object, a MainWindow object, show the main window, and
-    run the event loop.
-
-    Args:
-        None
+    Main function to run the application.
 
     Returns:
         int: The exit code of the application.

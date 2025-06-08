@@ -342,7 +342,7 @@
       <bool>false</bool>
      </property>
     </widget>
-    <widget class="QLabel" name="label_switch">
+    <widget class="QLabel" name="label_togglebt">
      <property name="geometry">
       <rect>
        <x>10</x>

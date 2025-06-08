@@ -1,4 +1,7 @@
 Release Note:
+v1.3.1:
+    optimize the serial port toggle button.
+
 v1.3.0:
     add uv tool and format code with ruff.
 

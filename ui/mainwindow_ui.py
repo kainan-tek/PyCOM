@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'mainwindow.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.9.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -143,10 +143,10 @@ class Ui_MainWindow(object):
         self.pushButton_Close.setFont(font2)
         self.pushButton_Close.setMouseTracking(False)
         self.pushButton_Close.setAutoDefault(True)
-        self.label_switch = QLabel(self.groupBox)
-        self.label_switch.setObjectName(u"label_switch")
-        self.label_switch.setGeometry(QRect(10, 265, 66, 30))
-        self.label_switch.setFont(font1)
+        self.label_togglebt = QLabel(self.groupBox)
+        self.label_togglebt.setObjectName(u"label_togglebt")
+        self.label_togglebt.setGeometry(QRect(10, 265, 66, 30))
+        self.label_togglebt.setFont(font1)
         self.groupBox_2 = QGroupBox(self.centralwidget)
         self.groupBox_2.setObjectName(u"groupBox_2")
         self.groupBox_2.setGeometry(QRect(5, 315, 741, 162))
@@ -411,7 +411,7 @@ class Ui_MainWindow(object):
         self.pushButton_Check.setText(QCoreApplication.translate("MainWindow", u"Check", None))
         self.pushButton_Open.setText(QCoreApplication.translate("MainWindow", u"Open", None))
         self.pushButton_Close.setText(QCoreApplication.translate("MainWindow", u"Close", None))
-        self.label_switch.setText(QCoreApplication.translate("MainWindow", u"ON/OFF", None))
+        self.label_togglebt.setText(QCoreApplication.translate("MainWindow", u"ON/OFF", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Send", None))
         self.textEdit_sSend.setHtml(QCoreApplication.translate("MainWindow", u"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><meta charset=\"utf-8\" /><style type=\"text/css\">\n"

@@ -1,4 +1,4 @@
-from PySide6.QtGui import QTextCursor
+from PySide6.QtGui import QTextCursor, QIcon
 from PySide6.QtWidgets import QWidget
 
 import globalvar as gl
@@ -23,6 +23,7 @@ class About(QWidget):
         # Set up the UI
         self.ui: Ui_About = Ui_About()
         self.ui.setupUi(self)
+        self.setWindowIcon(QIcon(":/icons/pycom"))
 
         # Initialize the About window
         self.ui_init()
