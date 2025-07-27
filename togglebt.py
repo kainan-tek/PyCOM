@@ -26,7 +26,7 @@ class ToggleButton(QPushButton):
             QPushButton {{
                 border-radius: {self.btn_radius}px;
                 background-color: #e0e0e0;
-                border: 2px solid #d0d0d0;
+                border: 1px solid #d0d0d0;
                 font-weight: bold;
                 color: #666666;
                 font-size: {max(10, int(self.btn_height * 0.4))}px;
@@ -52,9 +52,7 @@ class ToggleButton(QPushButton):
         # create the animation
         self.animation = QPropertyAnimation(self.thumb, QByteArray(b"geometry"))
         self.animation.setDuration(200)  # duration of the animation in milliseconds
-        self.animation.setEasingCurve(
-            QEasingCurve.Type.OutCubic
-        )  # InQuad InCubic OutBack OutCubic
+        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)  # InQuad InCubic OutBack OutCubic
         # self.animation.valueChanged.connect(lambda: self.thumb.update())
         self.animation.finished.connect(self._animation_finished)
         self.toggled.connect(self.animate_thumb)
