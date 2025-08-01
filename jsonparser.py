@@ -17,13 +17,7 @@ class JsonParser:
 
     def file_read(self, encode: str = "utf-8") -> tuple[JsonFlag, dict]:
         """
-        Read json file and return the json dict.
-
-        Args:
-            encode (str): encoding of the file
-
-        Returns:
-            tuple[JsonFlag, dict]: result flag and the json dict
+        Read a json file and return its content as a dictionary.
         """
         json_dict: dict = {}
 
@@ -52,14 +46,7 @@ class JsonParser:
 
     def file_write(self, _json_dict: dict = {}, encode: str = "utf-8") -> JsonFlag:
         """
-        Write a json dict into a file.
-
-        Args:
-            _json_dict (dict, optional): The json dict to be written. Defaults to {}.
-            encode (str, optional): The encoding of the file. Defaults to "utf-8".
-
-        Returns:
-            JsonFlag: The result of writing the json dict.
+        Write a dictionary to a json file.
         """
         if not os.path.exists(self.file):
             return JsonFlag.NO_FILE  # file not exists, return no file flag

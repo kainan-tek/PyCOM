@@ -8,15 +8,7 @@ from ui.about_ui import Ui_About
 class About(QWidget):
     def __init__(self) -> None:
         """
-        Constructor of the About window class.
-
-        Initialize the UI and set up the About window.
-
-        Args:
-            None
-
-        Returns:
-            None
+        Initialize the About window class.
         """
         super(About, self).__init__()
 
@@ -30,16 +22,7 @@ class About(QWidget):
 
     def ui_init(self) -> None:
         """
-        Initialize the UI of the About window.
-
-        Move the cursor to the start of the text, insert the text into the text edit widget,
-        and then move the cursor back to the start of the text.
-
-        Args:
-            None
-
-        Returns:
-            None
+        Initialize the About window UI.
         """
         # Move the cursor to the start of the text.
         self.ui.textEdit_About.moveCursor(QTextCursor.MoveOperation.Start)

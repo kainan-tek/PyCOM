@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>750</width>
-    <height>530</height>
+    <height>535</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,13 +19,13 @@
   <property name="minimumSize">
    <size>
     <width>750</width>
-    <height>530</height>
+    <height>535</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>750</width>
-    <height>530</height>
+    <height>535</height>
    </size>
   </property>
   <property name="font">
@@ -368,7 +368,7 @@
       <x>5</x>
       <y>315</y>
       <width>741</width>
-      <height>162</height>
+      <height>160</height>
      </rect>
     </property>
     <property name="autoFillBackground">
@@ -384,9 +384,9 @@
      <property name="geometry">
       <rect>
        <x>2</x>
-       <y>20</y>
+       <y>17</y>
        <width>736</width>
-       <height>140</height>
+       <height>141</height>
       </rect>
      </property>
      <property name="autoFillBackground">
@@ -408,7 +408,7 @@
          <x>0</x>
          <y>0</y>
          <width>541</width>
-         <height>111</height>
+         <height>116</height>
         </rect>
        </property>
        <property name="styleSheet">
@@ -941,7 +941,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
          <x>0</x>
          <y>0</y>
          <width>731</width>
-         <height>111</height>
+         <height>114</height>
         </rect>
        </property>
        <property name="font">

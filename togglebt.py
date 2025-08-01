@@ -1,115 +1,131 @@
-from PySide6.QtWidgets import QApplication, QPushButton, QWidget, QVBoxLayout
-from PySide6.QtCore import QPropertyAnimation, QRect, QEasingCurve, QByteArray
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton
+from PySide6.QtCore import QPropertyAnimation, QEasingCurve, Property, QRectF, QSize
+from PySide6.QtGui import QPainter, QColor, QPen, QBrush
+from PySide6.QtCore import Qt
 
 
 class ToggleButton(QPushButton):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setCheckable(True)
-        # toggle button size
-        self.btn_width = 80
-        self.btn_height = 30
-        self.setFixedSize(self.btn_width, self.btn_height)
+        # Remove fixed size, use sizeHint and responsive drawing
+        # self.setFixedSize(80, 30)
 
-        # size and position of the thumb
-        thumb_margin = 3
-        self.thumb_size = self.btn_height - 2 * thumb_margin
-        self.thumb_radius = self.thumb_size / 2
-        self.btn_radius = self.btn_height / 2
-        self.thumb_start_x = thumb_margin
-        self.thumb_end_x = self.btn_width - self.thumb_size - thumb_margin
+        # Initialize animation related properties
+        self._thumb_position = 0.0  # 0.0 = OFF, 1.0 = ON
+        self.thumb_margin = 3
+        self.animation_duration = 200
 
-        self._is_animating = False
+        # Define colors
+        self.bg_color_off = QColor("#e0e0e0")
+        self.bg_color_on = QColor("#0795FF")
+        self.thumb_color = QColor("white")
+        self.border_color = QColor("#d0d0d0")
+        self.text_color_off = QColor("#666666")
+        self.text_color_on = QColor("#f5f5f5")
 
-        # button style  bg: #e0e0e0 #D4D7DC   #4CAF50 #0795FF
-        self.setStyleSheet(
-            f"""
-            QPushButton {{
-                border-radius: {self.btn_radius}px;
-                background-color: #e0e0e0;
-                border: 1px solid #d0d0d0;
-                font-weight: bold;
-                color: #666666;
-                font-size: {max(10, int(self.btn_height * 0.4))}px;
-            }}
-            QPushButton:checked {{
-                background-color: #0795FF;
-                color: #f5f5f5;
-            }}
-        """
-        )
+        # Create animation object, animate the custom property thumbPosition
+        self.animation = QPropertyAnimation(self, b"thumbPosition")
+        self.animation.setDuration(self.animation_duration)
+        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        # create the thumb widget
-        self.thumb = QWidget(self)
-        self.thumb.setGeometry(
-            self.thumb_start_x, thumb_margin, self.thumb_size, self.thumb_size
-        )
-        self.thumb.setStyleSheet(
-            f"""
-            background-color: white; 
-            border-radius: {self.thumb_radius}px;
-            border: 1px solid #d0d0d0;
-        """
-        )
-        # self.thumb.update()
+        # Connect signals
+        self.toggled.connect(self.on_toggled)
 
-        # create the animation
-        self.animation = QPropertyAnimation(self.thumb, QByteArray(b"geometry"))
-        self.animation.setDuration(200)  # duration of the animation in milliseconds
-        self.animation.setEasingCurve(
-            QEasingCurve.Type.OutCubic
-        )  # InQuad InCubic OutBack OutCubic
-        # self.animation.valueChanged.connect(lambda: self.thumb.update())
-        self.animation.finished.connect(self._animation_finished)
-        self.toggled.connect(self.animate_thumb)
+    # def sizeHint(self):
+    #     """Return the recommended size for the widget"""
+    #     return QSize(80, 30)
 
-        self.setText("OFF")
+    def on_toggled(self, checked):
+        """当按钮被切换时触发动画"""
+        if self.animation.state() == QPropertyAnimation.State.Running:
+            self.animation.stop()  # Stop if animation is already running
 
-    def animate_thumb(self, checked):
-        if self._is_animating:
-            return
-
-        self._is_animating = True
-        self.animation.stop()
-
-        if checked:
-            self.setText("ON")
-            self.animation.setStartValue(
-                QRect(self.thumb_start_x, 3, self.thumb_size, self.thumb_size)
-            )
-            self.animation.setEndValue(
-                QRect(self.thumb_end_x, 3, self.thumb_size, self.thumb_size)
-            )
-        else:
-            self.setText("OFF")
-            self.animation.setStartValue(
-                QRect(self.thumb_end_x, 3, self.thumb_size, self.thumb_size)
-            )
-            self.animation.setEndValue(
-                QRect(self.thumb_start_x, 3, self.thumb_size, self.thumb_size)
-            )
-
+        # Set the start and end values for the animation
+        self.animation.setStartValue(self._thumb_position)
+        self.animation.setEndValue(1.0 if checked else 0.0)
         self.animation.start()
 
-    def _animation_finished(self):
-        self._is_animating = False
+    def get_thumb_position(self):
+        """Getter for the thumb position property"""
+        return self._thumb_position
+
+    def set_thumb_position(self, pos):
+        """Setter for the thumb position property"""
+        # Ensure the value is between 0.0 and 1.0
+        self._thumb_position = max(0.0, min(1.0, pos))
+        self.update()  # Trigger repaint
+
+    # Use Property decorator to register the custom property, making it animatable by QPropertyAnimation
+    thumbPosition = Property(float, get_thumb_position, set_thumb_position)
+
+    def paintEvent(self, event):
+        """Override paintEvent to draw the toggle button"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)  # Antialiasing
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        rect = self.rect()
+        h = rect.height()
+        w = rect.width()
+
+        # Calculate the track rectangle
+        track_rect = QRectF(0, 0, w, h)
+
+        # Set background color based on checked state
+        if self.isChecked():
+            painter.setBrush(self.bg_color_on)
+        else:
+            painter.setBrush(self.bg_color_off)
+
+        # Draw the rounded rectangle track
+        track_radius = h / 2.0
+        painter.drawRoundedRect(track_rect, track_radius, track_radius)
+
+        # Calculate the size and position of the thumb
+        thumb_size = h - 2 * self.thumb_margin
+        # Interpolate the X coordinate of the thumb based on _thumb_position
+        thumb_x = (
+            self.thumb_margin
+            + (w - thumb_size - 2 * self.thumb_margin) * self._thumb_position
+        )
+        thumb_rect = QRectF(thumb_x, self.thumb_margin, thumb_size, thumb_size)
+        thumb_radius = thumb_size / 2.0
+
+        # Draw the thumb
+        painter.setBrush(self.thumb_color)
+        painter.setPen(QPen(self.border_color, 1))
+        painter.drawEllipse(thumb_rect)
+
+        # Draw the text
+        font = painter.font()
+        font.setBold(True)
+        font.setPointSizeF(max(6, h * 0.3))  # Adjust font size based on height
+        painter.setFont(font)
+
+        if self.isChecked():
+            painter.setPen(self.text_color_on)
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "ON")
+        else:
+            painter.setPen(self.text_color_off)
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "OFF")
 
 
-class MainWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.btn = ToggleButton()
-        layout.addWidget(self.btn)
-        self.setLayout(layout)
-
-        self.setWindowTitle("Toggle Button Example")
-        self.setStyleSheet("background-color: #f0f0f0;")
-        self.resize(400, 200)
-
-
+# --- Example Code ---
 if __name__ == "__main__":
-    app = QApplication([])
-    window = MainWindow()
+    import sys
+
+    app = QApplication(sys.argv)
+
+    window = QMainWindow()
+    window.setWindowTitle("Toggle Button Demo")
+    window.resize(400, 200)
+
+    toggle = ToggleButton()
+    # You can set different sizes to test responsiveness
+    # toggle.setFixedSize(100, 40)
+
+    window.setCentralWidget(toggle)
     window.show()
-    app.exec()
+
+    sys.exit(app.exec())

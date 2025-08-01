@@ -13,16 +13,7 @@ LogInfo = {
 class Log:
     def __init__(self) -> None:
         """
-        Initialize the Log class.
-
-        Creates the necessary directory for storing log files, sets up the
-        logger, and adds handlers for console and file logging.
-
-        Args:
-            None
-
-        Returns:
-            None
+        Initialize the logger.
         """
         log_dirname: str = os.path.join(os.path.expanduser("~"), LogInfo["reldir"])
         if not os.path.exists(log_dirname):
