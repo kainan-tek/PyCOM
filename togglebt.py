@@ -1,3 +1,5 @@
+import sys
+
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton
 from PySide6.QtCore import QPropertyAnimation, QEasingCurve, Property, QRectF, QSize
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush
@@ -113,8 +115,6 @@ class ToggleButton(QPushButton):
 
 # --- Example Code ---
 if __name__ == "__main__":
-    import sys
-
     app = QApplication(sys.argv)
 
     window = QMainWindow()

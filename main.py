@@ -4,6 +4,7 @@ import re
 import string
 import sys
 import time
+import platform
 
 import chardet
 import serial
@@ -25,6 +26,7 @@ from jsonparser import JsonFlag, JsonParser
 from logwrapper import log_inst
 from ui.mainwindow_ui import Ui_MainWindow
 from togglebt import ToggleButton
+
 # from togglebt_bk import ToggleButton
 
 
@@ -46,9 +48,6 @@ class MainWindow(QMainWindow):
         """
         Initialize variables and objects for the main window.
         """
-        # Initialize toggle button state
-        self.togglebt_enable: bool = True  # Flag to enable/disable toggle button
-
         # Initialize send/receive size tracking
         self.total_sendsize: int = 0  # The total send size
         self.total_recsize: int = 0  # The total received size
@@ -69,7 +68,7 @@ class MainWindow(QMainWindow):
 
         # Initialize timers
         self.send_timer: QTimer = QTimer()  # The timer for the data sending
-        self.send_timer.timeout.connect(self.data_send)
+        self.send_timer.timeout.connect(self.timer_data_send)
         self.fsend_timer: QTimer = QTimer()  # The timer for the json file data sending
         self.fsend_timer.timeout.connect(self.jsfile_data_send)
 
@@ -116,20 +115,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{gl.GuiInfo['proj']} {gl.GuiInfo['version']}")
         self.setWindowIcon(QIcon(":/icons/pycom"))
 
-        if self.togglebt_enable:
-            # enable toggle button
-            self.ui.pushButton_Open.setHidden(True)
-            self.ui.pushButton_Close.setHidden(True)
-            self.toggltBtn = ToggleButton(self.ui.groupBox)
-            self.toggltBtn.setGeometry(85, 265, 80, 30)
-            self.toggltBtn.toggled.connect(self.port_toggle)
-        else:
-            # disable toggle button
-            self.ui.label_togglebt.setHidden(True)
-            self.ui.pushButton_Open.clicked.connect(self.open_port)
-            self.ui.pushButton_Close.clicked.connect(self.close_port)
-            self.ui.pushButton_Open.setEnabled(True)
-            self.ui.pushButton_Close.setDisabled(True)
+        self.toggltBtn = ToggleButton(self.ui.groupBox)
+        self.toggltBtn.setGeometry(85, 265, 80, 30)
+        self.toggltBtn.toggled.connect(self.port_toggle)
 
         # Menu setup: connect actions to corresponding functions
         self.ui.actionOpen_File.triggered.connect(self.action_open_file)
@@ -242,38 +230,44 @@ class MainWindow(QMainWindow):
     def open_port(self) -> bool:
         """
         Open the serial port with the parameters set in the UI.
+        Optimize by structuring the setup and error handling.
         """
-        self.ser_instance.port = self.ui.comboBox_SPort.currentText().strip()
+        # Retrieve settings from UI components
+        port = self.ui.comboBox_SPort.currentText().strip()
+        if not port:
+            # Reset toggle button state if checked
+            if self.toggltBtn.isChecked():
+                self.toggltBtn.setChecked(False)
+            self.msgbox.warning(self, "Info", "No port selected")
+            return False
+
+        # Configure the serial instance
+        self.ser_instance.port = port
         self.ser_instance.baudrate = int(self.ui.comboBox_BRate.currentText().strip())
         self.ser_instance.bytesize = int(self.ui.comboBox_BSize.currentText().strip())
         self.ser_instance.stopbits = int(self.ui.comboBox_SBit.currentText().strip())
         self.ser_instance.parity = self.ui.comboBox_PBit.currentText().strip()[0]
         self.ser_instance.timeout = gl.SerialInfo["timeout"]
 
-        if not self.ser_instance.port:
-            self.msgbox.warning(self, "Info", "No port be selected")
-            if self.togglebt_enable and self.toggltBtn.isChecked():
-                self.toggltBtn.setChecked(False)
-            return False
-
+        # Check if the port is not open and attempt to open
         if not self.ser_instance.is_open:
             try:
                 self.ser_instance.open()
-            except Exception as err:
-                msg = (
-                    "The selected port may be occupied."
-                    if "Permission" in str(err)
-                    else "Cannot open the port with these params."
-                )
-                self.log.error(msg + f" Error: {str(err)}")
-                self.msgbox.critical(self, "Error", msg)
-                if self.togglebt_enable and self.toggltBtn.isChecked():
+            except serial.SerialException as err:
+                # Reset toggle state on failure
+                if self.toggltBtn.isChecked():
                     self.toggltBtn.setChecked(False)
+                # Handle different types of errors
+                if "Permission" in str(err):
+                    msg = "The selected port may be occupied."
+                else:
+                    msg = "Cannot open the port with these parameters."
+                self.log.error(f"{msg} Error: {err}")
+                self.msgbox.critical(self, "Error", msg)
                 return False
+
+        # If open, update UI accordingly
         if self.ser_instance.is_open:
-            if not self.togglebt_enable:
-                self.ui.pushButton_Open.setDisabled(True)
-                self.ui.pushButton_Close.setEnabled(True)
             self.set_components_state(True)
         return True
 
@@ -302,17 +296,13 @@ class MainWindow(QMainWindow):
         Post processing after closing the serial port.
         """
         if not self.ser_instance.is_open:
-            if self.togglebt_enable:
-                if self.toggltBtn.isChecked():
-                    self.toggltBtn.setChecked(False)
-            else:
-                self.ui.pushButton_Open.setEnabled(True)
-                self.ui.pushButton_Close.setDisabled(True)
+            if self.toggltBtn.isChecked():
+                self.toggltBtn.setChecked(False)
             self.set_components_state(False)
 
     ########################## single and multi send function ############################
 
-    def data_send(self) -> bool:
+    def timer_data_send(self) -> bool:
         """
         Send data based on the current state of single and multi cycle sends.
         """
@@ -322,7 +312,8 @@ class MainWindow(QMainWindow):
             self.ui.checkBox_sCycle.click()
             self.ui.checkBox_mCycle.click()
             msg: str = (
-                "Both single cycle send and multi cycle send are activated\nDeactivate them all, please try again"
+                "Both single cycle send and multi cycle send are activated.\n\n"
+                "Deactivate them all, please try again"
             )
             self.log.error(msg)
             self.msgbox.warning(self, "Warning", msg)
@@ -340,12 +331,12 @@ class MainWindow(QMainWindow):
         """
         Check if the given text is in valid hex format.
         """
-        post_text: str = text.replace(" ", "")
-        if not len(post_text) % 2 == 0:
-            return False
-        if not all(item in string.hexdigits for item in post_text):
-            return False
-        return True
+        # Remove spaces to check the hex string
+        post_text = text.replace(" ", "")
+        # Check for even length and that every character is a hex digit
+        return (len(post_text) % 2 == 0) and all(
+            c in string.hexdigits for c in post_text
+        )
 
     def _send_bytes(self, data_bytes: bytes) -> int:
         if not self.ser_instance.is_open:
@@ -447,7 +438,6 @@ class MainWindow(QMainWindow):
         """
         hexmode_state: bool = self.ui.checkBox_sHexmode.isChecked()
         text: str = self.ui.textEdit_sSend.toPlainText()
-
         if not text:
             return
 
@@ -544,28 +534,29 @@ class MainWindow(QMainWindow):
         Send the data in the text edit widget if the button is checked and the
         text edit is not empty.
         """
+        # multi_dict: {"m{x}": [0, 0]}, first 0 means checked status, second 0 means send status
         for i in range(1, 7):
             key = f"m{i}"
-            self.multi_dict[key][0] = (
-                1
-                if getattr(self.ui, f"checkBox_{key}").isChecked()
-                and getattr(self.ui, f"lineEdit_{key}").text()
-                else 0
-            )
+            is_checked = getattr(self.ui, f"checkBox_{key}").isChecked()
+            has_text = bool(getattr(self.ui, f"lineEdit_{key}").text().strip())
+            # Only add the entry if both conditions: checked and has text
+            self.multi_dict[key][0] = 1 if is_checked and has_text else 0
+
+        # Check if at least one item in multi_dict is checked (i.e., the first element is 1)
+        if not any(item[0] for item in self.multi_dict.values()):
+            self.msgbox.information(self, "Info", "No item checked or no data input")
+            self.ui.checkBox_mCycle.setChecked(False)
+            return
 
         for item in self.multi_dict:
             if self.multi_dict[item][0] == 1 and self.multi_dict[item][1] == 0:
                 self.multi_common_send(item)
-                self.multi_dict[item][1] = 1
-                break
+                self.multi_dict[item][1] = 1  # Set send status to 1
+                break  # for timer, send next data in next timer event
 
-        if all(
-            self.multi_dict[item][1]
-            for item in self.multi_dict
-            if self.multi_dict[item][0]
-        ):
-            for item in self.multi_dict:
-                self.multi_dict[item][1] = 0
+        if all(item[1] for item in self.multi_dict.values() if item[0]):
+            for item in self.multi_dict.values():
+                item[1] = 0  # Reset send status to 0
 
     def multi_send_set_cyclemode(self) -> bool:
         """
@@ -583,7 +574,7 @@ class MainWindow(QMainWindow):
                 self.ui.checkBox_mCycle.setChecked(False)
                 return False
             # [0,0] first 0 means checked status, second 0 means send status
-            self.multi_dict = {f"m{i + 1}": [0, 0] for i in range(6)}
+            self.multi_dict = {f"m{i}": [0, 0] for i in range(1, 7)}
             self.send_timer.start(int(cycle_text.strip()))
             self.ui.lineEdit_mCycle.setEnabled(False)
         else:
@@ -821,15 +812,28 @@ class MainWindow(QMainWindow):
         """
         Open the file dialog to select a file to open.
         """
-        if not os.path.exists(self.recdatas_file):
+        # Check if the received data file exists
+        if not hasattr(self, "recdatas_file") or not os.path.exists(self.recdatas_file):
             self.msgbox.information(
                 self, "Info", "Please save a receive datas file first"
             )
             return False
-        if "nt" in os.name:
-            os.startfile(os.path.dirname(self.recdatas_file))
-        else:
-            os.system(f"xdg-open {os.path.dirname(self.recdatas_file)}")
+
+        directory = os.path.dirname(self.recdatas_file)
+        try:
+            # Use platform-specific commands to open the directory
+            system = platform.system()
+            if system == "Windows":
+                os.startfile(directory)
+            elif system in ("Linux", "Darwin"):
+                command = "xdg-open" if system == "Linux" else "open"
+                os.system(f"{command} {directory}")
+        except Exception as e:
+            self.log.error(f"Failed to open directory: {directory}, error: {e}")
+            self.msgbox.critical(
+                self, "Error", f"Failed to open directory: {directory}\n{e}"
+            )
+            return False
         return True
 
     def action_exit(self) -> None:
@@ -922,15 +926,8 @@ class ReceiveThread(QThread):
         self.close_port_flag = True
 
 
-def main() -> int:
-    """
-    Main function to run the PyQt application.
-    """
-    app: QApplication = QApplication(sys.argv)
-    window: MainWindow = MainWindow()
-    window.show()
-    return app.exec()
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    app = QApplication(sys.argv)
+    mainWindow = MainWindow()
+    mainWindow.show()
+    sys.exit(app.exec())

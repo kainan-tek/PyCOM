@@ -259,89 +259,6 @@
       <bool>false</bool>
      </property>
     </widget>
-    <widget class="QPushButton" name="pushButton_Open">
-     <property name="geometry">
-      <rect>
-       <x>15</x>
-       <y>265</y>
-       <width>71</width>
-       <height>31</height>
-      </rect>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>11</pointsize>
-       <bold>false</bold>
-      </font>
-     </property>
-     <property name="mouseTracking">
-      <bool>false</bool>
-     </property>
-     <property name="tabletTracking">
-      <bool>false</bool>
-     </property>
-     <property name="focusPolicy">
-      <enum>Qt::FocusPolicy::StrongFocus</enum>
-     </property>
-     <property name="acceptDrops">
-      <bool>false</bool>
-     </property>
-     <property name="autoFillBackground">
-      <bool>false</bool>
-     </property>
-     <property name="styleSheet">
-      <string notr="true"/>
-     </property>
-     <property name="text">
-      <string>Open</string>
-     </property>
-     <property name="checkable">
-      <bool>false</bool>
-     </property>
-     <property name="autoRepeat">
-      <bool>false</bool>
-     </property>
-     <property name="autoExclusive">
-      <bool>false</bool>
-     </property>
-     <property name="autoDefault">
-      <bool>true</bool>
-     </property>
-     <property name="default">
-      <bool>false</bool>
-     </property>
-     <property name="flat">
-      <bool>false</bool>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="pushButton_Close">
-     <property name="geometry">
-      <rect>
-       <x>100</x>
-       <y>265</y>
-       <width>71</width>
-       <height>31</height>
-      </rect>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>11</pointsize>
-       <bold>false</bold>
-      </font>
-     </property>
-     <property name="mouseTracking">
-      <bool>false</bool>
-     </property>
-     <property name="text">
-      <string>Close</string>
-     </property>
-     <property name="autoDefault">
-      <bool>true</bool>
-     </property>
-     <property name="default">
-      <bool>false</bool>
-     </property>
-    </widget>
     <widget class="QLabel" name="label_togglebt">
      <property name="geometry">
       <rect>
@@ -368,7 +285,7 @@
       <x>5</x>
       <y>315</y>
       <width>741</width>
-      <height>160</height>
+      <height>161</height>
      </rect>
     </property>
     <property name="autoFillBackground">
@@ -408,7 +325,7 @@
          <x>0</x>
          <y>0</y>
          <width>541</width>
-         <height>116</height>
+         <height>115</height>
         </rect>
        </property>
        <property name="styleSheet">
@@ -452,7 +369,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <rect>
          <x>640</x>
          <y>80</y>
-         <width>81</width>
+         <width>71</width>
          <height>26</height>
         </rect>
        </property>
@@ -481,7 +398,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <rect>
          <x>640</x>
          <y>45</y>
-         <width>85</width>
+         <width>81</width>
          <height>26</height>
         </rect>
        </property>
