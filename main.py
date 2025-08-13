@@ -903,7 +903,7 @@ class ReceiveThread(QThread):
         """
         Run the receive thread.
         """
-        while True:
+        while not self.isInterruptionRequested():
             if self.ser.is_open:
                 try:
                     datas: bytes = self.ser.readall()
@@ -912,15 +912,23 @@ class ReceiveThread(QThread):
                 except Exception as e:
                     log_inst.logger.error(f"Serial read error: {str(e)}")
                     self.close_port_flag = True
+            else:
+                # If port is not open, sleep longer to reduce CPU usage
+                self.msleep(100)  # Sleep for 100ms
+                continue
+
+            # Check for interruption request
             if self.isInterruptionRequested():
                 break
+
             if not self.recqueue.empty():
                 self.data_rec_signal.emit()
             if self.close_port_flag:
                 self.ser.close()
                 self.close_port_flag = False
                 self.port_closed_signal.emit()
-            time.sleep(0.01)
+
+            self.msleep(10)  # Sleep for 10ms
 
     def rec_close_port(self):
         self.close_port_flag = True
