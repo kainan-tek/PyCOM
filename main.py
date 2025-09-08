@@ -1,31 +1,30 @@
 import os
+import platform
 import queue
 import re
 import string
 import sys
-import time
-import platform
 
-import chardet
-import serial
-import serial.tools.list_ports
-from PySide6.QtCore import QEvent, QMutex, QThread, QTimer, Signal, QObject, Qt
-from PySide6.QtGui import QIcon, QIntValidator, QTextCursor, QKeyEvent, QCloseEvent
+from PySide6.QtCore import QEvent, QMutex, QObject, QThread, QTimer, Qt, Signal
+from PySide6.QtGui import QCloseEvent, QIcon, QIntValidator, QKeyEvent, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
-    QLineEdit,
 )
+import chardet
+import serial
+import serial.tools.list_ports
 
-import globalvar as gl
 from about import About
+import globalvar as gl
 from jsonparser import JsonFlag, JsonParser
 from logwrapper import log_inst
-from ui.mainwindow_ui import Ui_MainWindow
 from togglebt import ToggleButton
+from ui.mainwindow_ui import Ui_MainWindow
 
 # from togglebt_bk import ToggleButton
 
@@ -51,7 +50,6 @@ class MainWindow(QMainWindow):
         # Initialize send/receive size tracking
         self.total_sendsize: int = 0  # The total send size
         self.total_recsize: int = 0  # The total received size
-        self.datasize_text: str = ""  # The text to show the send/receive size
         self.recdatas_file: str = ""  # The file name of the received data
 
         # Initialize data encoding settings
@@ -70,7 +68,7 @@ class MainWindow(QMainWindow):
         self.send_timer: QTimer = QTimer()  # The timer for the data sending
         self.send_timer.timeout.connect(self.timer_data_send)
         self.fsend_timer: QTimer = QTimer()  # The timer for the json file data sending
-        self.fsend_timer.timeout.connect(self.jsfile_data_send)
+        self.fsend_timer.timeout.connect(self.timer_jsfile_data_send)
 
         # Initialize and start the receive thread
         self.recthread: ReceiveThread = ReceiveThread(self.ser_instance, self)
@@ -169,10 +167,10 @@ class MainWindow(QMainWindow):
         self.ui.plainTextEdit_Guide.setPlainText(gl.GuideInfo)
 
         # Status bar setup: initialize and add data size status
-        self.datasize_text = "  Send: 0  |  Receive: 0  "
-        self.label_rwsize = QLabel(self.datasize_text)
+        self.label_rwsize = QLabel("")
         self.label_rwsize.setStyleSheet("color:blue")
         self.ui.statusbar.addPermanentWidget(self.label_rwsize, stretch=0)
+        self.update_rwsize_status()
 
         # Set up the initial state of the UI components
         self.set_components_state(False)
@@ -184,13 +182,17 @@ class MainWindow(QMainWindow):
         Parse the serial ports and add them to the combo box.
         """
         self.ui.comboBox_SPort.clear()
-        ports_list: list[str] = [
-            port.device for port in serial.tools.list_ports.comports()
-        ]
-        self.ui.comboBox_SPort.addItems(ports_list)
-        return True
+        try:
+            ports_list: list[str] = [
+                port.device for port in serial.tools.list_ports.comports()
+            ]
+            self.ui.comboBox_SPort.addItems(ports_list)
+            return True
+        except Exception as e:
+            self.log.error(f"Error parsing ports: {str(e)}")
+            self.msgbox.warning(self, "Warning", f"Failed to enumerate ports: {str(e)}")
+            return False
 
-    # if enable toggle button
     def port_toggle(self) -> None:
         """Toggle the serial port open and close."""
         if self.toggltBtn.isChecked():
@@ -269,6 +271,7 @@ class MainWindow(QMainWindow):
         # If open, update UI accordingly
         if self.ser_instance.is_open:
             self.set_components_state(True)
+            self.log.info(f"Port {port} opened successfully")
         return True
 
     def close_port(self) -> None:
@@ -367,20 +370,19 @@ class MainWindow(QMainWindow):
         """
         Send data from the single send text edit widget to the serial port.
         """
-        NEWLINE_BYTES = [13, 10]
-        int_list: list[int] = []
-        text: str = self.ui.textEdit_sSend.toPlainText()
-        newline_state: bool = self.ui.checkBox_sNewline.isChecked()
-        is_hex = self.ui.checkBox_sHexmode.isChecked()
+        try:
+            text: str = self.ui.textEdit_sSend.toPlainText()
+            newline_state: bool = self.ui.checkBox_sNewline.isChecked()
+            is_hex: bool = self.ui.checkBox_sHexmode.isChecked()
 
-        if not self.ser_instance.is_open:
-            self.msgbox.information(self, "Info", "Please open a serial port first")
-            return False
-        if not text and not newline_state:
-            return False
+            if not self.ser_instance.is_open:
+                self.msgbox.information(self, "Info", "Please open a serial port first")
+                return False
+            if not text:
+                return False
 
-        if is_hex:
-            if text:
+            # process data
+            if is_hex:
                 if not self.is_send_hex_mode(text):
                     if self.ui.checkBox_sCycle.isChecked():
                         self.ui.checkBox_sCycle.click()
@@ -388,22 +390,31 @@ class MainWindow(QMainWindow):
                     self.log.warning(msg)
                     self.msgbox.warning(self, "Warning", msg)
                     return False
-                text_list: list[str] = re.findall(".{2}", text.replace(" ", ""))
-                str_text: str = " ".join(text_list)
-                if not str_text == text:
-                    self.ui.textEdit_sSend.clear()
-                    self.ui.textEdit_sSend.insertPlainText(str_text)
-                int_list = [int(item, 16) for item in text_list]
-            if newline_state:
-                int_list.extend(NEWLINE_BYTES)
-            bytes_text: bytes = bytes(int_list)
-        else:
-            if newline_state:
-                text = text + "\r\n"
-            bytes_text: bytes = text.encode(self.encode_info, "replace")
 
-        self._send_bytes(bytes_text)
-        return True
+                # transform hex data to bytes
+                hex_data = text.replace(" ", "")
+                bytes_text: bytes = bytes.fromhex(hex_data)
+
+                formatted_text = " ".join(re.findall(r".{2}", hex_data))
+                if formatted_text != text:
+                    self.ui.textEdit_sSend.clear()
+                    self.ui.textEdit_sSend.insertPlainText(formatted_text)
+
+                if newline_state:
+                    bytes_text += os.linesep.encode()
+            else:
+                if newline_state:
+                    text += os.linesep
+                bytes_text: bytes = text.encode(self.encode_info, "replace")
+
+            self._send_bytes(bytes_text) if bytes_text else None
+            return True
+        except Exception as e:
+            self.log.error(f"Error in single_data_send: {str(e)}")
+            self.msgbox.warning(self, "Error", f"Failed to send data: {str(e)}")
+            if self.ui.checkBox_sCycle.isChecked():
+                self.ui.checkBox_sCycle.click()
+            return False
 
     def send_set_cyclemode(self) -> bool:
         """
@@ -413,6 +424,7 @@ class MainWindow(QMainWindow):
             msg: str = ""
             cycle_text = self.ui.lineEdit_sCycle.text()
             send_text = self.ui.textEdit_sSend.toPlainText()
+
             if not self.ser_instance.is_open:
                 msg = "Please open a port first"
             elif not cycle_text:
@@ -421,10 +433,12 @@ class MainWindow(QMainWindow):
                 msg = "Cycle send time should be greater than 0"
             elif not send_text:
                 msg = "Please fill send datas first"
+
             if msg:
                 self.msgbox.information(self, "Info", msg)
                 self.ui.checkBox_sCycle.setChecked(False)
                 return False
+
             self.send_timer.start(int(cycle_text.strip()))
             self.ui.lineEdit_sCycle.setEnabled(False)
         else:
@@ -490,43 +504,51 @@ class MainWindow(QMainWindow):
 
     def multi_common_send(self, seq: str) -> bool:
         """
-        Send data from the specified multi send line edit widget.
+        Send data based on the sequence provided (e.g., "m1", "m2").
         """
-        int_list: list[int] = []
-        line_edit: QLineEdit = getattr(self.ui, f"lineEdit_{seq}")
-        text = line_edit.text()
-        newline_state = self.ui.checkBox_mNewLine.isChecked()
-
         if not self.ser_instance.is_open:
             self.msgbox.information(self, "Info", "Please open a serial port first")
             return False
-        if not text and not newline_state:
+
+        line_edit: QLineEdit = getattr(self.ui, f"lineEdit_{seq}", None)
+        text = line_edit.text()
+        if not text:
             return False
 
-        if self.ui.checkBox_mHexMode.isChecked():
-            if text:
-                if not self.is_send_hex_mode(text):
-                    if self.ui.checkBox_mCycle.isChecked():
-                        self.ui.checkBox_mCycle.click()
-                    self.msgbox.warning(
-                        self, "Warning", f"Not correct hex format in Edit {seq}"
-                    )
-                    return False
-                text_list: list[str] = re.findall(".{2}", text.replace(" ", ""))
-                str_text: str = " ".join(text_list)
-                if not str_text == text:
-                    line_edit.clear()
-                    line_edit.insert(str_text)
-                int_list = [int(item, 16) for item in text_list]
-            if newline_state:
-                int_list.extend([13, 10])
-            bytes_text = bytes(int_list)
-        else:
-            if newline_state:
-                text = text + "\r\n"
-            bytes_text = text.encode(self.encode_info, "replace")
+        newline_state = self.ui.checkBox_mNewLine.isChecked()
+        is_hex_mode = self.ui.checkBox_mHexMode.isChecked()
 
-        self._send_bytes(bytes_text)
+        # Validate Hex Format
+        if is_hex_mode and not self.is_send_hex_mode(text):
+            self.msgbox.warning(
+                self, "Warning", f"Not correct hex format in Edit {seq}"
+            )
+            if self.ui.checkBox_mCycle.isChecked():
+                self.ui.checkBox_mCycle.click()
+            return False
+
+        try:
+            if is_hex_mode:
+                text_list: list[str] = re.findall(r".{2}", text.replace(" ", ""))
+                formatted_text: str = " ".join(text_list)
+                if formatted_text != text:
+                    line_edit.clear()
+                    line_edit.insert(formatted_text)
+
+                data_bytes: bytes = bytes.fromhex("".join(text_list))
+                if newline_state:
+                    data_bytes += os.linesep.encode(self.encode_info, "replace")
+            else:
+                newline = os.linesep if newline_state else ""
+                data_bytes: bytes = (text + newline).encode(self.encode_info, "replace")
+
+            self._send_bytes(data_bytes)
+        except Exception as e:
+            self.log.error(f"Error preparing data for send: {e}")
+            self.msgbox.warning(self, "Error", f"Failed to prepare send data: {e}")
+            if self.ui.checkBox_mCycle.isChecked():
+                self.ui.checkBox_mCycle.click()
+            return False
         return True
 
     def multi_cycle_send(self) -> None:
@@ -608,7 +630,9 @@ class MainWindow(QMainWindow):
         """
         try:
             with open(file, "rb") as f:
-                encodeinfo = chardet.detect(f.read())
+                # only read 1MB data to predict encoding
+                sample_size = min(1024 * 1024, os.path.getsize(file))  # 1MB
+                encodeinfo = chardet.detect(f.read(sample_size))
             return encodeinfo.get("encoding") or "utf-8"
         except Exception as e:
             self.log.error(f"Encoding prediction failed: {e}")
@@ -630,90 +654,90 @@ class MainWindow(QMainWindow):
 
         basename: str = os.path.basename(sfile)
         self.js_send_list.clear()
-        if "json" in basename:
-            # for json file
-            jsparser: JsonParser = JsonParser(sfile)
-            ret: tuple[JsonFlag, dict] = jsparser.file_read(encode)
-            if not ret[0].value == JsonFlag.SUCCESS.value:
-                msgtext: str = f"Error of reading json fie, err: {ret[0].name}"
-                self.log.error(msgtext)
-                self.msgbox.critical(self, "Error", msgtext)
+
+        if "json" in basename.lower():
+            return self._process_json_file(sfile, encode)
+        else:
+            return self._process_text_file(sfile, encode)
+
+    def _process_json_file(self, file_path: str, encoding: str) -> bool:
+        """
+        Process a JSON file and send its content to the serial port.
+        """
+        try:
+            jsparser: JsonParser = JsonParser(file_path)
+            ret: tuple[JsonFlag, dict] = jsparser.file_read(encoding)
+            if ret[0] != JsonFlag.SUCCESS:
+                error_msg: str = f"Error reading JSON file: {ret[0].name}"
+                self.log.error(error_msg)
+                self.msgbox.critical(self, "Error", error_msg)
                 return False
+
             js_dict: dict = ret[1]
             cycle_time: int = js_dict["cycle_ms"]
             hex_mode: int = js_dict["hexmode"]
+            datas: list[dict] = js_dict["datas"]
+
             if hex_mode:
-                for i in range(len(js_dict["datas"])):
-                    str_data: str = js_dict["datas"][i]["data"].replace(" ", "")
-                    if not all(item in string.hexdigits for item in str_data):
+                for item in datas:
+                    str_data: str = item["data"].replace(" ", "")
+                    if not all(c in string.hexdigits for c in str_data):
                         self.msgbox.critical(
                             self, "Error", "Not every item is hex digit, please check."
                         )
                         return False
-                    text_lst: list[str] = re.findall(".{2}", str_data)
-                    int_lst: list[int] = [int(item, 16) for item in text_lst]
-                    js_dict["datas"][i]["data"] = bytes(int_lst)
-                self.js_send_list = [
-                    [js_dict["datas"][i]["select"], 1, 0, js_dict["datas"][i]["data"]]
-                    for i in range(len(js_dict["datas"]))
-                ]
+                    bytes_data = bytes.fromhex(str_data)
+                    item["data"] = bytes_data
             else:
-                # self.js_send_list[[is_select, is_hexmode, is_sent, data]...]
-                self.js_send_list = [
-                    [js_dict["datas"][i]["select"], 0, 0, js_dict["datas"][i]["data"]]
-                    for i in range(len(js_dict["datas"]))
-                ]
+                for item in datas:
+                    item["data"] = item["data"].encode(self.encode_info, "ignore")
+
+            # generate send list
+            self.js_send_list = [
+                [item["select"], hex_mode, 0, item["data"]] for item in datas
+            ]
+
+            # different way to send data according to cycle time
             if cycle_time > 0:
                 self.fsend_timer.start(cycle_time)
             else:
+                # Send all selected items immediately if no cycle time is specified
                 for item in self.js_send_list:
                     if item[0] == 1:  # selected
-                        sendsize_raw = (
-                            self.ser_instance.write(item[3])
-                            if item[1] == 1  # hex mode
-                            else self.ser_instance.write(
-                                item[3].encode(self.encode_info, "ignore")
-                            )
-                        )
-                        sendsize: int = sendsize_raw if sendsize_raw is not None else 0
-                        self.total_sendsize += sendsize
-                        self.update_rwsize_status()
-        else:
-            # for txt file
-            try:
-                with open(sfile, mode="r", encoding=encode, newline="") as fp:
-                    send_text: str = fp.read()
-            except Exception as e:
-                msgtext: str = "Error of opening file"
-                self.log.error(f"{msgtext}, err: {e}")
-                self.msgbox.critical(self, "Error", msgtext)
-                return False
-            if self.ser_instance.is_open:
-                sendsize_raw = self.ser_instance.write(
-                    send_text.encode(self.encode_info, "ignore")
-                )
-                sendsize: int = sendsize_raw if sendsize_raw is not None else 0
-                self.total_sendsize += sendsize
-                self.update_rwsize_status()
+                        self._send_bytes(item[3]) if item[3] else None
+            return True
+        except Exception as e:
+            error_msg: str = f"Failed to process JSON file: {str(e)}"
+            self.log.error(error_msg)
+            self.msgbox.critical(self, "Error", error_msg)
+            return False
+
+    def _process_text_file(self, file_path: str, encoding: str) -> bool:
+        """
+        Process a text file and send its content to the serial port.
+        """
+        try:
+            with open(file_path, mode="r", encoding=encoding, newline="") as fp:
+                send_text: str = fp.read()
+        except Exception as e:
+            msgtext: str = "Error of opening file"
+            self.log.error(f"{msgtext}, err: {e}")
+            self.msgbox.critical(self, "Error", msgtext)
+            return False
+
+        if self.ser_instance.is_open:
+            data_bytes = send_text.encode(self.encode_info, "ignore")
+            self._send_bytes(data_bytes) if data_bytes else None
         return True
 
-    def jsfile_data_send(self) -> None:
+    def timer_jsfile_data_send(self) -> None:
         """
         Send the data in the js_send_list.
         """
         for item in self.js_send_list:
             if item[0] == 1 and item[2] == 0:  # selected and not sent
-                sendsize_raw = (
-                    self.ser_instance.write(item[3])
-                    if item[1] == 1  # hex mode
-                    else self.ser_instance.write(
-                        item[3].encode(self.encode_info, "ignore")
-                    )
-                )
-                sendsize: int = sendsize_raw if sendsize_raw is not None else 0
+                self._send_bytes(item[3]) if item[3] else None
                 item[2] = 1  # mark as sent
-                self.total_sendsize += sendsize
-                self.update_rwsize_status()
                 break
         if all(item[2] == 1 for item in self.js_send_list if item[0] == 1):
             self.fsend_timer.stop()
@@ -801,10 +825,10 @@ class MainWindow(QMainWindow):
         self.update_rwsize_status()
 
     def update_rwsize_status(self) -> None:
-        self.datasize_text = (
+        datasize_text = (
             f"  Send: {self.total_sendsize}  |  Receive: {self.total_recsize}  "
         )
-        self.label_rwsize.setText(self.datasize_text)
+        self.label_rwsize.setText(datasize_text)
 
     ########################## menu function ############################
 
@@ -907,11 +931,14 @@ class ReceiveThread(QThread):
             if self.ser.is_open:
                 try:
                     datas: bytes = self.ser.readall()
-                    if datas:
-                        self.recqueue.put_nowait(datas)
+                    try:
+                        self.recqueue.put_nowait(datas) if datas else None
+                    except queue.Full:
+                        log_inst.logger.warning("Receive queue is full, dropping data")
                 except Exception as e:
                     log_inst.logger.error(f"Serial read error: {str(e)}")
                     self.close_port_flag = True
+                    self.msleep(100)
             else:
                 # If port is not open, sleep longer to reduce CPU usage
                 self.msleep(100)  # Sleep for 100ms
