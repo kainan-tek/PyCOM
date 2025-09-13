@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "chardet>=5.2.0",
     "pyserial>=3.5",
-    "pyside6>=6.9.1",
+    "pyside6>=6.9.2",
 ]
 
 [[tool.uv.index]]
