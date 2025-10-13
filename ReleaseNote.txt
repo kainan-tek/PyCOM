@@ -1,4 +1,7 @@
 Release Note:
+v1.3.2:
+    some minor changes.
+
 v1.3.1:
     optimize the serial port toggle button.
 
