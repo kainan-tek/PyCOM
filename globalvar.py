@@ -1,4 +1,4 @@
-GuiInfo = {"proj": "PyCOM", "version": " v1.3.1", "cwd": ""}
+GuiInfo = {"proj": "PyCOM", "version": " v1.3.2", "cwd": ""}
 
 
 SerialInfo = {

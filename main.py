@@ -956,9 +956,9 @@ class ReceiveThread(QThread):
         """
         Run the receive thread.
         """
-        from main import log_inst  # Local import to avoid circular dependency
+        import threading
 
-        log_inst.logger.info("Receive thread started")
+        threading.current_thread().name = "ReceiveThread"
 
         while not self.isInterruptionRequested():
             # Handle port closed state first
