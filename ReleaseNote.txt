@@ -1,6 +1,6 @@
 Release Note:
 v1.3.2:
-    some minor changes.
+    update pyside6 version: v6.10.0
 
 v1.3.1:
     optimize the serial port toggle button.
