@@ -1,5 +1,5 @@
 # Application constants
-GUI_INFO = {"proj": "PyCOM", "version": " v1.3.2", "cwd": ""}
+GUI_INFO = {"proj": "PyCOM", "version": " v2.0.0", "cwd": ""}
 
 # Serial port configuration constants
 SERIAL_INFO = {

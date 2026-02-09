@@ -63,58 +63,53 @@ class ToggleButton(QPushButton):
 
     def paintEvent(self, event):
         """Override paintEvent to draw the toggle button"""
-        try:
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)  # Antialiasing
-            painter.setPen(Qt.PenStyle.NoPen)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)  # Antialiasing
+        painter.setPen(Qt.PenStyle.NoPen)
 
-            rect = self.rect()
-            h = rect.height()
-            w = rect.width()
+        rect = self.rect()
+        h = rect.height()
+        w = rect.width()
 
-            # Calculate the track rectangle
-            track_rect = QRectF(0, 0, w, h)
+        # Calculate the track rectangle
+        track_rect = QRectF(0, 0, w, h)
 
-            # Set background color based on checked state
-            if self.isChecked():
-                painter.setBrush(self.bg_color_on)
-            else:
-                painter.setBrush(self.bg_color_off)
+        # Set background color based on checked state
+        if self.isChecked():
+            painter.setBrush(self.bg_color_on)
+        else:
+            painter.setBrush(self.bg_color_off)
 
-            # Draw the rounded rectangle track
-            track_radius = h / 2.0
-            painter.drawRoundedRect(track_rect, track_radius, track_radius)
+        # Draw the rounded rectangle track
+        track_radius = h / 2.0
+        painter.drawRoundedRect(track_rect, track_radius, track_radius)
 
-            # Calculate the size and position of the thumb
-            thumb_size = h - 2 * self.thumb_margin
-            # Interpolate the X coordinate of the thumb based on _thumb_position
-            thumb_x = (
-                self.thumb_margin
-                + (w - thumb_size - 2 * self.thumb_margin) * self._thumb_position
-            )
-            thumb_rect = QRectF(thumb_x, self.thumb_margin, thumb_size, thumb_size)
-            thumb_radius = thumb_size / 2.0
+        # Calculate the size and position of the thumb
+        thumb_size = h - 2 * self.thumb_margin
+        # Interpolate the X coordinate of the thumb based on _thumb_position
+        thumb_x = (
+            self.thumb_margin + (w - thumb_size - 2 * self.thumb_margin) * self._thumb_position
+        )
+        thumb_rect = QRectF(thumb_x, self.thumb_margin, thumb_size, thumb_size)
+        thumb_radius = thumb_size / 2.0
 
-            # Draw the thumb
-            painter.setBrush(self.thumb_color)
-            painter.setPen(QPen(self.border_color, 1))
-            painter.drawEllipse(thumb_rect)
+        # Draw the thumb
+        painter.setBrush(self.thumb_color)
+        painter.setPen(QPen(self.border_color, 1))
+        painter.drawEllipse(thumb_rect)
 
-            # Draw the text
-            font = painter.font()
-            font.setBold(True)
-            font.setPointSizeF(max(6, h * 0.3))  # Adjust font size based on height
-            painter.setFont(font)
+        # Draw the text
+        font = painter.font()
+        font.setBold(True)
+        font.setPointSizeF(max(6, h * 0.3))  # Adjust font size based on height
+        painter.setFont(font)
 
-            if self.isChecked():
-                painter.setPen(self.text_color_on)
-                painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "ON")
-            else:
-                painter.setPen(self.text_color_off)
-                painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "OFF")
-        except KeyboardInterrupt:
-            # Handle keyboard interrupt gracefully
-            pass
+        if self.isChecked():
+            painter.setPen(self.text_color_on)
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "ON")
+        else:
+            painter.setPen(self.text_color_off)
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "OFF")
 
 
 # --- Example Code ---

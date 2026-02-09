@@ -89,9 +89,7 @@ class ToggleButton(QPushButton):
             start_rect = QRect(
                 self.thumb_start_x, self.thumb_margin, self.thumb_size, self.thumb_size
             )
-            end_rect = QRect(
-                self.thumb_end_x, self.thumb_margin, self.thumb_size, self.thumb_size
-            )
+            end_rect = QRect(self.thumb_end_x, self.thumb_margin, self.thumb_size, self.thumb_size)
         else:
             start_rect = QRect(
                 self.thumb_end_x, self.thumb_margin, self.thumb_size, self.thumb_size
