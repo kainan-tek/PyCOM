@@ -23,5 +23,5 @@ class About(QWidget):
         Initialize the About window UI.
         """
         self.ui.textEdit_About.moveCursor(QTextCursor.MoveOperation.Start)
-        self.ui.textEdit_About.insertPlainText(gl.AboutInfo)
+        self.ui.textEdit_About.insertPlainText(gl.ABOUT_INFO)
         self.ui.textEdit_About.moveCursor(QTextCursor.MoveOperation.Start)

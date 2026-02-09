@@ -1,7 +1,8 @@
-GuiInfo = {"proj": "PyCOM", "version": " v1.3.2", "cwd": ""}
+# Application constants
+GUI_INFO = {"proj": "PyCOM", "version": " v1.3.2", "cwd": ""}
 
-
-SerialInfo = {
+# Serial port configuration constants
+SERIAL_INFO = {
     "baudrate": [
         "300",
         "600",
@@ -30,17 +31,17 @@ SerialInfo = {
     "timeout": 0.01,
 }
 
-
-AboutInfo = f"""
-    Project: {GuiInfo["proj"]}
-    Version: {GuiInfo["version"]}
+# About dialog information
+ABOUT_INFO = f"""
+    Project: {GUI_INFO["proj"]}
+    Version: {GUI_INFO["version"]}
 
     Support: kainanos@outlook.com
     Github Repo: https://github.com/kainan-tek/PyCom
 """
 
-
-GuideInfo = """
+# User guide information
+GUIDE_INFO = """
     Encoding: the default encoding is gbk, plese change in the settings menu if needed.
 
     Single Send: 
@@ -58,3 +59,8 @@ GuideInfo = """
         hexmode tag: 0: send the selected items as txt contents; 1: send the selected items as hex contents.
         select tag: 0: the data is not selected to be sent; 1: the data is selected to be sent.
 """
+
+# Thread and queue constants
+RECEIVE_QUEUE_SIZE = 50
+THREAD_WAIT_TIMEOUT_MS = 500
+MAX_MULTI_SEND_CHANNELS = 6

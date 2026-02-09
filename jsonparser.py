@@ -12,7 +12,7 @@ class JsonFlag(Enum):
 
 
 class JsonParser:
-    def __init__(self, _file):
+    def __init__(self, _file: str) -> None:
         self.file: str = _file
 
     def file_read(self, encode: str = "utf-8") -> tuple[JsonFlag, dict]:
@@ -22,39 +22,33 @@ class JsonParser:
         json_dict: dict = {}
 
         if not os.path.exists(self.file):
-            return JsonFlag.NO_FILE, json_dict  # file not exists, return no file flag
+            return JsonFlag.NO_FILE, json_dict
 
         try:
             with open(self.file, mode="r", encoding=encode, newline="") as fp:
                 json_dict = json.load(fp)
-        except Exception:
-            return (
-                JsonFlag.ERR_OPEN_R,
-                json_dict,
-            )  # error occurs, return error open read flag
+        except (OSError, IOError, json.JSONDecodeError):
+            return JsonFlag.ERR_OPEN_R, json_dict
 
         if not json_dict:
-            return (
-                JsonFlag.EMPTY_DICT,
-                json_dict,
-            )  # json dict is empty, return empty dict flag
+            return JsonFlag.EMPTY_DICT, json_dict
 
-        return (
-            JsonFlag.SUCCESS,
-            json_dict,
-        )  # read json successfully, return success flag
+        return JsonFlag.SUCCESS, json_dict
 
-    def file_write(self, _json_dict: dict = {}, encode: str = "utf-8") -> JsonFlag:
+    def file_write(self, _json_dict: dict = None, encode: str = "utf-8") -> JsonFlag:
         """
         Write a dictionary to a json file.
         """
+        if _json_dict is None:
+            _json_dict = {}
+
         if not os.path.exists(self.file):
-            return JsonFlag.NO_FILE  # file not exists, return no file flag
+            return JsonFlag.NO_FILE
 
         try:
             with open(self.file, mode="w+", encoding=encode) as fp:
                 json.dump(_json_dict, fp, indent=4, ensure_ascii=False)
-        except Exception:
-            return JsonFlag.ERR_OPEN_W  # error occurs, return error open write flag
+        except (OSError, IOError):
+            return JsonFlag.ERR_OPEN_W
 
-        return JsonFlag.SUCCESS  # write successfully, return success flag
+        return JsonFlag.SUCCESS
