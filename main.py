@@ -209,7 +209,9 @@ class MainWindow(QMainWindow):
             return False
 
     def port_toggle(self) -> None:
-        """Toggle the serial port open and close."""
+        """
+        Toggle the serial port open and close.
+        """
         if self.toggle_btn.isChecked():
             self.open_port()
         else:
@@ -471,8 +473,7 @@ class MainWindow(QMainWindow):
 
     def _multi_cycle_send(self) -> None:
         """
-        Send the data in the text edit widget if the button is checked and the
-        text edit is not empty.
+        Send the data in the text edit widget if the button is checked and the text edit is not empty.
         """
         # multi_dict: {"m{x}": [0, 0]}, first 0 means checked status, second 0 means send status
         for i in range(1, gl.MAX_MULTI_SEND_CHANNELS + 1):
@@ -828,7 +829,9 @@ class MainWindow(QMainWindow):
         sys.exit()
 
     def action_about(self) -> None:
-        """Show the about dialog."""
+        """
+        Show the about dialog.
+        """
         self.about.show()
 
     def action_encoding(self, encode: str) -> None:
