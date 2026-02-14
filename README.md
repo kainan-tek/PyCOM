@@ -37,7 +37,7 @@
 - ✅ 发送/接收字节统计
 
 ### 编码支持
-ASCII • UTF-8 • UTF-16 • UTF-32 • GBK/GB2312
+ASCII • UTF-8 • GBK/GB2312
 
 ---
 
@@ -185,7 +185,7 @@ Send: 1024  |  Receive: 2048
 
 菜单栏 → **Settings** → **Encoding** → 选择编码
 
-支持: ASCII、UTF-8、UTF-16、UTF-32、GBK/GB2312
+支持: ASCII、UTF-8、GBK/GB2312
 
 ---
 

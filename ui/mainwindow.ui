@@ -1046,10 +1046,6 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <addaction name="separator"/>
      <addaction name="actionUTF_8"/>
      <addaction name="separator"/>
-     <addaction name="actionUTF_16"/>
-     <addaction name="separator"/>
-     <addaction name="actionUTF_32"/>
-     <addaction name="separator"/>
      <addaction name="actionGBK_GB2312"/>
     </widget>
     <addaction name="menuEncoding_Type"/>
@@ -1078,6 +1074,9 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <property name="checkable">
     <bool>true</bool>
    </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>UTF-8</string>
    </property>
@@ -1090,28 +1089,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string>ASCII</string>
    </property>
   </action>
-  <action name="actionUTF_16">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>UTF-16</string>
-   </property>
-  </action>
-  <action name="actionUTF_32">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>UTF-32</string>
-   </property>
-  </action>
   <action name="actionGBK_GB2312">
    <property name="checkable">
     <bool>true</bool>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>GBK/GB2312</string>

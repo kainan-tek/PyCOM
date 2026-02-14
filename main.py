@@ -1,13 +1,16 @@
 import os
 import platform
 import sys
+from typing import Dict, List, Optional, Any
 
-from PySide6.QtCore import QEvent, QMutex, QObject, QTimer, Qt
+from PySide6.QtCore import QEvent, QObject, QTimer, Qt
 from PySide6.QtGui import QCloseEvent, QIcon, QIntValidator, QKeyEvent, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QFileDialog,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
 )
@@ -45,20 +48,18 @@ class MainWindow(QMainWindow):
         self.received_data_file: str = ""
 
         # Initialize data structures for sending
-        self.multi_dict: dict = {}
-        self.json_send_list: list = []
+        self.multi_dict: Dict[str, List[int]] = {}  # {"m1": [is_checked, is_sent]}
+        self.json_send_list: List[List[Any]] = []  # [selected, cycle_ms, sent, data]
 
         # Initialize core components
-        self.mutex: QMutex = QMutex()
         self.message_box: QMessageBox = QMessageBox()
-        self.serial_manager = SerialManager()
-        self.data_converter = DataConverter("gbk")  # Default encoding
-        self.data_sender = DataSender(self.serial_manager, self.data_converter)
-        self.file_handler = FileHandler(self.data_converter)
+        self.serial_manager: SerialManager = SerialManager()
+        self.data_converter: DataConverter = DataConverter("gbk")  # Default encoding
+        self.data_sender: DataSender = DataSender(self.serial_manager, self.data_converter)
+        self.file_handler: FileHandler = FileHandler(self.data_converter)
 
         # Initialize and start the receive thread
-        self.data_receiver = DataReceiver(self.serial_manager, self)
-        self.data_receiver.data_received.connect(self._update_receive_ui)
+        self.data_receiver: DataReceiver = DataReceiver(self.serial_manager, self)
         self.data_receiver.port_closed.connect(self._post_close_port)
         self.data_receiver.start()
 
@@ -67,9 +68,12 @@ class MainWindow(QMainWindow):
         self.send_timer.timeout.connect(self._timer_data_send)
         self.file_send_timer: QTimer = QTimer()
         self.file_send_timer.timeout.connect(self._timer_json_file_data_send)
+        self.receive_update_timer: QTimer = QTimer()
+        self.receive_update_timer.timeout.connect(self._update_receive_ui)
+        self.receive_update_timer.start(100)  # Update receive UI every 100ms
 
         # Initialize keyboard limits for hex mode input validation
-        self.key_limits = {
+        self.key_limits: set = {
             *[getattr(Qt.Key, f"Key_{c}") for c in "0123456789ABCDEF"],
             Qt.Key.Key_Space,
             Qt.Key.Key_Backspace,
@@ -78,9 +82,15 @@ class MainWindow(QMainWindow):
             Qt.Key.Key_Left,
             Qt.Key.Key_Up,
             Qt.Key.Key_Down,
+            Qt.Key.Key_Home,
+            Qt.Key.Key_End,
+            Qt.Key.Key_Tab,
             Qt.Key.Key_Control,
             Qt.Key.Key_Shift,
         }
+
+        # Initialize status bar label
+        self.label_rwsize: QLabel
 
     def initialize_gui(self) -> None:
         """
@@ -109,9 +119,18 @@ class MainWindow(QMainWindow):
         """
         Set up toggle button for port control.
         """
-        self.toggle_btn = ToggleButton(self.ui.groupBox)
-        self.toggle_btn.setGeometry(85, 265, 80, 30)
-        self.toggle_btn.toggled.connect(self.port_toggle)
+        if hasattr(self, 'ui') and hasattr(self.ui, 'groupBox'):
+            self.toggle_btn = ToggleButton(self.ui.groupBox)
+            # Set fixed size for consistent appearance
+            self.toggle_btn.setFixedSize(80, 30)
+            # Position the button at the bottom right of the group box
+            self.toggle_btn.move(
+                self.ui.groupBox.width() - 100,  # 20px margin from right
+                self.ui.groupBox.height() - 40,  # 40px margin from bottom
+            )
+            # Ensure button is visible above other widgets
+            self.toggle_btn.raise_()
+            self.toggle_btn.toggled.connect(self.port_toggle)
 
     def _setup_menu_connections(self) -> None:
         """
@@ -122,8 +141,6 @@ class MainWindow(QMainWindow):
         self.ui.actionAbout.triggered.connect(self.action_about)
         self.ui.actionASCII.triggered.connect(lambda: self.action_encoding("ascii"))
         self.ui.actionUTF_8.triggered.connect(lambda: self.action_encoding("utf-8"))
-        self.ui.actionUTF_16.triggered.connect(lambda: self.action_encoding("utf-16"))
-        self.ui.actionUTF_32.triggered.connect(lambda: self.action_encoding("utf-32"))
         self.ui.actionGBK_GB2312.triggered.connect(lambda: self.action_encoding("gbk"))
 
     def _setup_serial_controls(self) -> None:
@@ -167,6 +184,8 @@ class MainWindow(QMainWindow):
             getattr(self.ui, f"pushButton_m{i}").clicked.connect(
                 lambda checked, seq=f"m{i}": self.multi_common_send(seq)
             )
+            # Install event filter for hex mode input validation
+            getattr(self.ui, f"lineEdit_m{i}").installEventFilter(self)
         self.ui.checkBox_mCycle.clicked.connect(self.set_multi_cycle_mode)
         self.ui.checkBox_mHexMode.clicked.connect(self.set_multi_hex_mode)
         self.ui.lineEdit_mCycle.setValidator(QIntValidator())
@@ -193,20 +212,46 @@ class MainWindow(QMainWindow):
         self.ui.statusbar.addPermanentWidget(self.label_rwsize, stretch=0)
         self._update_rwsize_status()
 
+    def show_status_message(self, message: str, color: str = "", duration: int = 2000) -> None:
+        """
+        Show a temporary message in the status bar.
+
+        Args:
+            message: The message to display
+            color: Text color (e.g., "red", "green", "yellow")
+            duration: How long to show the message in milliseconds
+        """
+        # Remove any existing temporary messages
+        for widget in self.ui.statusbar.findChildren(QLabel):
+            if widget not in [self.label_rwsize]:
+                widget.deleteLater()
+
+        # Create and add the message label
+        msg_label = QLabel(message)
+        if color:
+            msg_label.setStyleSheet(f"color: {color}; font-weight: bold;")
+        self.ui.statusbar.addWidget(msg_label)
+
+        # Remove the label after the specified duration
+        QTimer.singleShot(duration, msg_label.deleteLater)
+
     ########################## port function ############################
 
     def scan_serial_ports(self) -> bool:
         """
         Scan the serial ports and add them to the combo box.
         """
-        self.ui.comboBox_SPort.clear()
-        ports_list = self.serial_manager.scan_ports()
-        if ports_list:
-            self.ui.comboBox_SPort.addItems(ports_list)
-            return True
-        else:
-            self.message_box.warning(self, "Warning", "Failed to enumerate ports")
-            return False
+        if hasattr(self, 'ui') and hasattr(self.ui, 'comboBox_SPort'):
+            self.ui.comboBox_SPort.clear()
+            ports_list = self.serial_manager.scan_ports()
+            if ports_list:
+                self.ui.comboBox_SPort.addItems(ports_list)
+                self.show_status_message(f"Found {len(ports_list)} serial ports", "green")
+                return True
+            else:
+                self.show_status_message("Failed to enumerate ports", "yellow")
+                return False
+        return False
 
     def port_toggle(self) -> None:
         """
@@ -254,28 +299,49 @@ class MainWindow(QMainWindow):
         if not port:
             if self.toggle_btn.isChecked():
                 self.toggle_btn.setChecked(False)
-            self.message_box.warning(self, "Info", "No port selected")
+            self.show_status_message("No port selected", "yellow")
             return False
 
         # Get parameters from UI
-        baudrate = int(self.ui.comboBox_BRate.currentText().strip())
-        bytesize = int(self.ui.comboBox_BSize.currentText().strip())
-        stopbits = int(self.ui.comboBox_SBit.currentText().strip())
-        parity = self.ui.comboBox_PBit.currentText().strip()[0]
-        timeout = gl.SERIAL_INFO["timeout"]
+        try:
+            baudrate = int(self.ui.comboBox_BRate.currentText().strip())
+            bytesize = int(self.ui.comboBox_BSize.currentText().strip())
+            stopbits = int(self.ui.comboBox_SBit.currentText().strip())
+            parity = self.ui.comboBox_PBit.currentText().strip()[0]
+            timeout = gl.SERIAL_INFO["timeout"]
+        except (ValueError, IndexError) as e:
+            if self.toggle_btn.isChecked():
+                self.toggle_btn.setChecked(False)
+            error_msg = f"Invalid serial port parameters: {str(e)}"
+            self.log.error(error_msg)
+            self.message_box.critical(self, "Error", error_msg)
+            return False
 
         # Open port using SerialManager
-        success, msg = self.serial_manager.open_port(
-            port, baudrate, bytesize, stopbits, parity, timeout
-        )
+        try:
+            success, msg = self.serial_manager.open_port(
+                port, baudrate, bytesize, stopbits, parity, timeout
+            )
+        except Exception as e:
+            if self.toggle_btn.isChecked():
+                self.toggle_btn.setChecked(False)
+            error_msg = f"Error opening serial port: {str(e)}"
+            self.log.error(error_msg)
+            self.message_box.critical(self, "Error", error_msg)
+            return False
 
         if not success:
             if self.toggle_btn.isChecked():
                 self.toggle_btn.setChecked(False)
-            self.message_box.critical(self, "Error", msg)
+            self.show_status_message(f"Error: {msg}", "red")
             return False
 
         self._set_components_state(True)
+        self.show_status_message(f"Port {port} opened successfully", "green")
+
+        # Start the receive update timer
+        self.receive_update_timer.start(100)
+
         return True
 
     def close_port(self) -> None:
@@ -291,6 +357,9 @@ class MainWindow(QMainWindow):
 
         # Stop the file send timer
         self.file_send_timer.stop()
+
+        # Stop the receive update timer
+        self.receive_update_timer.stop()
 
         # Check if the serial instance is open
         if self.serial_manager.is_open():
@@ -365,10 +434,16 @@ class MainWindow(QMainWindow):
             return False
 
         # Use DataSender to send data
-        success, bytes_sent = self.data_sender.send_data(text, is_hex, newline_state)
-        if success:
-            self._update_rwsize_status()
-        return success
+        try:
+            success, _ = self.data_sender.send_data(text, is_hex, newline_state)
+            if success:
+                self._update_rwsize_status()
+            return success
+        except Exception as e:
+            error_msg = f"Error sending data: {str(e)}"
+            self.log.error(error_msg)
+            self.message_box.warning(self, "Error", error_msg)
+            return False
 
     def set_single_cycle_mode(self) -> bool:
         """
@@ -397,11 +472,7 @@ class MainWindow(QMainWindow):
                 # Convert hex to text
                 success, str_text = self.data_converter.hex_to_text(text)
                 if not success:
-                    self.message_box.warning(
-                        self,
-                        "Warning",
-                        "Incorrect hex format data, can't convert to text format",
-                    )
+                    self.show_status_message("Incorrect hex format data, can't convert to text format", "yellow")
                     self.ui.checkBox_sHexmode.setChecked(True)
                     return
 
@@ -417,25 +488,41 @@ class MainWindow(QMainWindow):
         Event filter for the text edit widget in hex mode.
         """
         try:
-            if (
-                event.type() == QEvent.Type.KeyPress
-                and obj is self.ui.textEdit_sSend
-                and self.ui.checkBox_sHexmode.isChecked()
-            ):
+            if event.type() == QEvent.Type.KeyPress:
                 key_event = event if isinstance(event, QKeyEvent) else None
                 if key_event:
-                    # Allow Ctrl+V for paste operation
-                    if (
-                        key_event.key() == Qt.Key.Key_V
-                        and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier
-                    ):
-                        return super().eventFilter(obj, event)
+                    # Check if this is single send text edit in hex mode
+                    is_single_send_hex = (
+                        obj is self.ui.textEdit_sSend and self.ui.checkBox_sHexmode.isChecked()
+                    )
+
+                    # Check if this is multi send line edit in hex mode
+                    is_multi_send_hex = False
+                    for i in range(1, gl.MAX_MULTI_SEND_CHANNELS + 1):
+                        if obj is getattr(self.ui, f"lineEdit_m{i}", None):
+                            is_multi_send_hex = self.ui.checkBox_mHexMode.isChecked()
+                            break
+
+                    # Allow common Ctrl+Key combinations for editing
+                    if key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                        # Allow Ctrl+A (Select All), Ctrl+C (Copy),
+                        # Ctrl+V (Paste), Ctrl+X (Cut), Ctrl+Z (Undo)
+                        ctrl_keys = [
+                            Qt.Key.Key_A,
+                            Qt.Key.Key_C,
+                            Qt.Key.Key_V,
+                            Qt.Key.Key_X,
+                            Qt.Key.Key_Z,
+                        ]
+                        if key_event.key() in ctrl_keys:
+                            return super().eventFilter(obj, event)
 
                     # Check if key is valid for hex input
-                    if key_event.key() not in self.key_limits:
-                        self.message_box.warning(
-                            self, "Warning", "Hex mode now!\nPlease input 0-9, a-f, A-F"
-                        )
+                    if (
+                        is_single_send_hex or is_multi_send_hex
+                    ) and key_event.key() not in self.key_limits:
+                        # Show temporary red hint in status bar
+                        self.show_status_message("Hex mode: Please input 0-9, a-f, A-F", "red")
                         return True
 
             return super().eventFilter(obj, event)
@@ -453,17 +540,17 @@ class MainWindow(QMainWindow):
             self.message_box.information(self, "Info", "Please open a serial port first")
             return False
 
-        line_edit = getattr(self.ui, f"lineEdit_{seq}", None)
+        line_edit: Optional[QLineEdit] = getattr(self.ui, f"lineEdit_{seq}", None)
         if line_edit is None:
             self.log.error(f"LineEdit for {seq} not found")
             return False
 
-        text = line_edit.text()
+        text: str = line_edit.text()
         if not text:
             return False
 
-        newline_state = self.ui.checkBox_mNewLine.isChecked()
-        is_hex_mode = self.ui.checkBox_mHexMode.isChecked()
+        newline_state: bool = self.ui.checkBox_mNewLine.isChecked()
+        is_hex_mode: bool = self.ui.checkBox_mHexMode.isChecked()
 
         # Use DataSender to send data
         success, bytes_sent = self.data_sender.send_data(text, is_hex_mode, newline_state)
@@ -648,6 +735,8 @@ class MainWindow(QMainWindow):
         """
         for item in self.json_send_list:
             if item[0] == 1 and item[2] == 0:  # selected and not sent
+                success: bool
+                _: int
                 success, _ = self.data_sender.send_bytes(item[3])
                 if success:
                     self._update_rwsize_status()
@@ -664,37 +753,33 @@ class MainWindow(QMainWindow):
         """
         Toggle hex mode for the receive text edit widget.
         """
-        self.mutex.lock()
+        hexmode_state = self.ui.checkBox_RHexmode.isChecked()
+        text = self.ui.textEdit_Receive.toPlainText()
+        if not text:
+            return False
+
         try:
-            hexmode_state = self.ui.checkBox_RHexmode.isChecked()
-            text = self.ui.textEdit_Receive.toPlainText()
-            if not text:
-                return False
+            if hexmode_state:
+                # Convert text to hex
+                str_text = self.data_converter.text_to_hex(text) + " "
+            else:
+                # Convert hex to text
+                success, str_text = self.data_converter.hex_to_text(text)
+                if not success:
+                    self.log.error("Error converting receive data")
+                    self.ui.checkBox_RHexmode.setChecked(not hexmode_state)
+                    return False
 
-            try:
-                if hexmode_state:
-                    # Convert text to hex
-                    str_text = self.data_converter.text_to_hex(text) + " "
-                else:
-                    # Convert hex to text
-                    success, str_text = self.data_converter.hex_to_text(text)
-                    if not success:
-                        self.log.error("Error converting receive data")
-                        self.ui.checkBox_RHexmode.setChecked(not hexmode_state)
-                        return False
+            self.ui.textEdit_Receive.clear()
+            self.ui.textEdit_Receive.insertPlainText(str_text)
+            self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
+            return True
+        except Exception as e:
+            self.log.error(f"Error converting receive data: {e}")
+            self.ui.checkBox_RHexmode.setChecked(not hexmode_state)
+            return False
 
-                self.ui.textEdit_Receive.clear()
-                self.ui.textEdit_Receive.insertPlainText(str_text)
-                self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
-                return True
-            except Exception as e:
-                self.log.error(f"Error converting receive data: {e}")
-                self.ui.checkBox_RHexmode.setChecked(not hexmode_state)
-                return False
-        finally:
-            self.mutex.unlock()
-
-    def _set_cyclemode(self, check_box, line_edit, send_source) -> bool:
+    def _set_cyclemode(self, check_box: QCheckBox, line_edit: QLineEdit, send_source: str) -> bool:
         """
         Common cycle mode setting logic.
         """
@@ -724,34 +809,60 @@ class MainWindow(QMainWindow):
             check_box.setChecked(False)
             return False
 
-        self.send_timer.start(int(cycle_text.strip()))
-        line_edit.setEnabled(False)
-        return True
+        try:
+            cycle_time = int(cycle_text.strip())
+            if cycle_time <= 0:
+                self.message_box.information(
+                    self, "Info", "Cycle send time should be greater than 0"
+                )
+                check_box.setChecked(False)
+                return False
+            self.send_timer.start(cycle_time)
+            line_edit.setEnabled(False)
+            return True
+        except ValueError:
+            self.message_box.warning(
+                self, "Warning", "Invalid cycle time. Please enter a valid number."
+            )
+            check_box.setChecked(False)
+            return False
+        except Exception as e:
+            self.log.error(f"Error setting cycle mode: {e}")
+            self.message_box.warning(self, "Error", "Failed to set cycle mode. Please try again.")
+            check_box.setChecked(False)
+            return False
 
     def _update_receive_ui(self) -> None:
         """
         Update receive text edit widget with data from the receive queue.
+        Optimized for batch updates to reduce UI operations.
         """
-        self.mutex.lock()
-        try:
-            data_list = self.data_receiver.get_data_from_queue()
-            for received_data in data_list:
-                hex_status: bool = self.ui.checkBox_RHexmode.isChecked()
+        data_list = self.data_receiver.get_data_from_queue()
+        if not data_list:
+            return
 
-                if hex_status:
-                    received_data_str = self.data_converter.bytes_to_hex(received_data)
-                else:
-                    received_data_str = self.data_converter.bytes_to_text(received_data)
+        hex_status: bool = self.ui.checkBox_RHexmode.isChecked()
 
-                self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
-                self.ui.textEdit_Receive.insertPlainText(received_data_str)
-                if hex_status:
-                    self.ui.textEdit_Receive.insertPlainText(" ")
-                self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
+        # Batch process all data into a single string
+        all_text_parts = []
+        for received_data in data_list:
+            if hex_status:
+                all_text_parts.append(self.data_converter.bytes_to_hex(received_data))
+            else:
+                all_text_parts.append(self.data_converter.bytes_to_text(received_data))
 
-            self._update_rwsize_status()
-        finally:
-            self.mutex.unlock()
+        # Join all parts with appropriate separator
+        if hex_status:
+            combined_text = " ".join(all_text_parts) + " "
+        else:
+            combined_text = "".join(all_text_parts)
+
+        # Single UI update operation
+        self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
+        self.ui.textEdit_Receive.insertPlainText(combined_text)
+        self.ui.textEdit_Receive.moveCursor(QTextCursor.MoveOperation.End)
+
+        self._update_rwsize_status()
 
     def receive_save(self) -> bool:
         """
@@ -774,11 +885,12 @@ class MainWindow(QMainWindow):
             with open(self.received_data_file, "w+", encoding="utf-8") as fp:
                 fp.write(text)
             self.log.info(f"Successfully saved received data to {self.received_data_file}")
+            self.show_status_message("Successfully saved received data", "green")
+            return True
         except (OSError, IOError) as e:
             self.log.error(f"Error writing data to file: {str(e)}")
-            self.message_box.critical(self, "Error", "Error writing data into file")
+            self.show_status_message("Error writing data into file", "red")
             return False
-        return True
 
     def receive_clear(self) -> None:
         """
@@ -841,8 +953,6 @@ class MainWindow(QMainWindow):
         actions = {
             "ascii": self.ui.actionASCII,
             "utf-8": self.ui.actionUTF_8,
-            "utf-16": self.ui.actionUTF_16,
-            "utf-32": self.ui.actionUTF_32,
             "gbk": self.ui.actionGBK_GB2312,
         }
         for key, action in actions.items():
@@ -865,26 +975,67 @@ class MainWindow(QMainWindow):
         self.log.info("Cleaning up resources and exiting application")
 
         # 1. Stop timers first
-        if hasattr(self, "send_timer"):
-            self.send_timer.stop()
-        if hasattr(self, "file_send_timer"):
-            self.file_send_timer.stop()
+        try:
+            if hasattr(self, "send_timer"):
+                self.send_timer.stop()
+                self.log.debug("Send timer stopped")
+            if hasattr(self, "file_send_timer"):
+                self.file_send_timer.stop()
+                self.log.debug("File send timer stopped")
+            if hasattr(self, "receive_update_timer"):
+                self.receive_update_timer.stop()
+                self.log.debug("Receive update timer stopped")
+        except Exception as e:
+            self.log.error(f"Error stopping timers: {str(e)}")
 
         # 2. Stop receive thread
-        if hasattr(self, "data_receiver") and self.data_receiver.isRunning():
-            self.data_receiver.requestInterruption()
-            self.data_receiver.quit()
-            self.data_receiver.wait(gl.THREAD_WAIT_TIMEOUT_MS)
+        try:
+            if hasattr(self, "data_receiver") and self.data_receiver.isRunning():
+                self.data_receiver.requestInterruption()
+                self.data_receiver.quit()
+                if self.data_receiver.wait(gl.THREAD_WAIT_TIMEOUT_MS):
+                    self.log.debug("Data receiver thread stopped gracefully")
+                else:
+                    self.log.warning("Data receiver thread may not have stopped properly")
+        except Exception as e:
+            self.log.error(f"Error stopping receive thread: {str(e)}")
 
         # 3. Close serial port
-        if hasattr(self, "serial_manager") and self.serial_manager.is_open():
-            self.serial_manager.close_port()
+        try:
+            if hasattr(self, "serial_manager") and self.serial_manager.is_open():
+                success, msg = self.serial_manager.close_port()
+                if success:
+                    self.log.debug(f"Serial port closed successfully: {msg}")
+                else:
+                    self.log.warning(f"Error closing serial port: {msg}")
+        except Exception as e:
+            self.log.error(f"Error closing serial port: {str(e)}")
 
         # 4. Clean up objects
-        if hasattr(self, "data_receiver"):
-            self.data_receiver.deleteLater()
-        if hasattr(self, "about"):
-            self.about.close()
+        try:
+            if hasattr(self, "data_receiver"):
+                self.data_receiver.deleteLater()
+                self.log.debug("Data receiver deleted")
+            if hasattr(self, "about"):
+                self.about.close()
+                self.log.debug("About dialog closed")
+            # Clean up other resources
+            if hasattr(self, "serial_manager"):
+                del self.serial_manager
+                self.log.debug("Serial manager deleted")
+            if hasattr(self, "data_converter"):
+                del self.data_converter
+                self.log.debug("Data converter deleted")
+            if hasattr(self, "data_sender"):
+                del self.data_sender
+                self.log.debug("Data sender deleted")
+            if hasattr(self, "file_handler"):
+                del self.file_handler
+                self.log.debug("File handler deleted")
+        except Exception as e:
+            self.log.error(f"Error cleaning up objects: {str(e)}")
+
+        self.log.info("Resource cleanup completed")
 
 
 if __name__ == "__main__":

@@ -34,9 +34,9 @@ class ToggleButton(QPushButton):
         # Connect signals
         self.toggled.connect(self.on_toggled)
 
-    # def sizeHint(self):
-    #     """Return the recommended size for the widget"""
-    #     return QSize(80, 30)
+    def sizeHint(self):
+        """Return the recommended size for the widget"""
+        return QSize(80, 30)
 
     def on_toggled(self, checked):
         """当按钮被切换时触发动画"""

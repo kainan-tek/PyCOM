@@ -34,6 +34,7 @@ class DataConverter:
         """
         self.encoding = encoding
         self.log = logger.logger
+        self.byte_buffer: bytes = b""  # Buffer for incomplete multi-byte characters
 
     def set_encoding(self, encoding: str) -> None:
         """
@@ -105,7 +106,8 @@ class DataConverter:
 
     def bytes_to_text(self, data: bytes) -> str:
         """
-        Convert bytes to text.
+        Convert bytes to text with support for multi-byte characters.
+        Handles incomplete multi-byte characters using a buffer.
 
         Args:
             data: Bytes to convert
@@ -113,10 +115,119 @@ class DataConverter:
         Returns:
             Converted text
         """
+        if not data:
+            return ""
+
+        # Add new data to buffer
+        self.byte_buffer += data
+
+        if self.encoding.lower() in ["utf-8", "utf8"]:
+            return self._utf8_bytes_to_text()
+        elif self.encoding.lower() in ["gbk", "cp936"]:
+            return self._gbk_bytes_to_text()
+        else:
+            # For other encodings, use simple decode
+            try:
+                text = self.byte_buffer.decode(self.encoding, "replace")
+                self.byte_buffer = b""  # Clear buffer
+                return text
+            except (ValueError, UnicodeDecodeError) as e:
+                self.log.error(f"Error converting bytes to text: {e}")
+                self.byte_buffer = b""  # Clear buffer on error
+                return ""
+
+    def _utf8_bytes_to_text(self) -> str:
+        """
+        Convert UTF-8 bytes to text, handling incomplete characters.
+        """
+        buffer_len = len(self.byte_buffer)
+        if buffer_len == 0:
+            return ""
+
+        # Find the last complete UTF-8 character boundary
+        i = buffer_len - 1
+        while i >= 0:
+            byte = self.byte_buffer[i]
+            # Check if this byte is the start of a UTF-8 character
+            if byte < 0x80:  # Single-byte character
+                break
+            elif (byte & 0xC0) == 0xC0:  # Start of multi-byte character
+                # Determine how many bytes this character should have
+                if (byte & 0xE0) == 0xC0:  # 2-byte
+                    required = 2
+                elif (byte & 0xF0) == 0xE0:  # 3-byte
+                    required = 3
+                elif (byte & 0xF8) == 0xF0:  # 4-byte
+                    required = 4
+                else:
+                    # Invalid UTF-8 leading byte, treat as error
+                    i -= 1
+                    continue
+
+                # Check if we have enough bytes for this character
+                if buffer_len - i >= required:
+                    break
+                else:
+                    # Not enough bytes, move to previous potential start
+                    i -= 1
+            else:
+                # Continuation byte, move back
+                i -= 1
+
+        if i < 0:
+            # No complete characters
+            return ""
+
+        # Split buffer into complete and incomplete parts
+        complete_data = self.byte_buffer[: i + 1]
+        self.byte_buffer = self.byte_buffer[i + 1 :]
+
         try:
-            return data.decode(self.encoding, "replace")
+            return complete_data.decode("utf-8", "replace")
         except (ValueError, UnicodeDecodeError) as e:
-            self.log.error(f"Error converting bytes to text: {e}")
+            self.log.error(f"Error converting UTF-8 bytes to text: {e}")
+            self.byte_buffer = b""  # Clear buffer on error
+            return ""
+
+    def _gbk_bytes_to_text(self) -> str:
+        """
+        Convert GBK bytes to text, handling incomplete characters.
+        """
+        buffer_len = len(self.byte_buffer)
+        if buffer_len == 0:
+            return ""
+
+        # Find the last complete GBK character boundary
+        i = buffer_len - 1
+        while i >= 0:
+            byte = self.byte_buffer[i]
+            # Check if this byte is the start of a GBK character
+            if byte < 0x80:  # Single-byte (ASCII)
+                break
+            elif 0x81 <= byte <= 0xFE:  # Start of 2-byte GBK
+                # Check if we have enough bytes
+                if i + 1 < buffer_len:
+                    break
+                else:
+                    # Not enough bytes, move to previous
+                    i -= 1
+            else:
+                # Invalid GBK byte, move back
+                i -= 1
+
+        if i < 0:
+            # No complete characters
+            return ""
+
+        # Split buffer into complete and incomplete parts
+        complete_data = self.byte_buffer[: i + 1]
+        self.byte_buffer = self.byte_buffer[i + 1 :]
+
+        try:
+            return complete_data.decode("gbk", "replace")
+        except (ValueError, UnicodeDecodeError) as e:
+            self.log.error(f"Error converting GBK bytes to text: {e}")
+            self.byte_buffer = b""  # Clear buffer on error
             return ""
 
     def bytes_to_hex(self, data: bytes, separator: str = " ") -> str:
@@ -243,7 +354,6 @@ class DataSender:
         bytes_sent = self.serial_manager.write(bytes_data)
         if bytes_sent > 0:
             self.total_sent += bytes_sent
-            self.log.debug(f"Sent {bytes_sent} bytes (text mode)")
             return True, bytes_sent
 
         return False, 0
@@ -275,7 +385,6 @@ class DataSender:
         bytes_sent = self.serial_manager.write(bytes_data)
         if bytes_sent > 0:
             self.total_sent += bytes_sent
-            self.log.debug(f"Sent {bytes_sent} bytes (hex mode)")
             return True, bytes_sent
 
         return False, 0
@@ -318,7 +427,6 @@ class DataSender:
         bytes_sent = self.serial_manager.write(data)
         if bytes_sent > 0:
             self.total_sent += bytes_sent
-            self.log.debug(f"Sent {bytes_sent} bytes (raw mode)")
             return True, bytes_sent
 
         return False, 0
@@ -358,11 +466,9 @@ class DataReceiver(QThread):
     the serial port without blocking the UI.
 
     Signals:
-        data_received: Emitted when data is received (bytes)
         port_closed: Emitted when port is closed
     """
 
-    data_received = Signal(bytes)
     port_closed = Signal()
 
     def __init__(self, serial_manager: SerialManager, parent=None) -> None:
@@ -404,11 +510,9 @@ class DataReceiver(QThread):
                     try:
                         self.receive_queue.put_nowait(data)
                         self.total_received += len(data)
-                        self.data_received.emit(data)
                     except queue.Full:
                         self.total_dropped += len(data)
-                        self.log.warning(f"Receive queue is full, dropped {len(data)} bytes")
-                        self.data_received.emit(data)  # Still notify UI
+                        self.log.error(f"Receive queue is full, dropped {len(data)} bytes")
             except Exception as e:
                 self.log.error(f"Error reading from serial port: {str(e)}")
                 self.close_port_flag = True

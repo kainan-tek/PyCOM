@@ -1,6 +1,6 @@
 [project]
 name = "PyCOM"
-version = "2.0.0"
+version = "2.0.1"
 description = "A serial port communication tool written with python."
 readme = "README.md"
 requires-python = ">=3.14"

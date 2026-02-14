@@ -1,4 +1,35 @@
 Release Note:
+v2.0.1 (2026-02-14) - Performance and Encoding Improvements:
+    Encoding Changes:
+        - Removed UTF-16 and UTF-32 encoding support
+        - Kept only ASCII, UTF-8, and GBK/GB2312 encodings for better stability
+        - Improved multi-byte character handling for UTF-8 and GBK
+
+    Performance Improvements:
+        - Changed receive data update mechanism from signal-driven to timer-based polling
+        - Implemented batch processing for received data to reduce UI updates
+        - Optimized receive UI update frequency (100ms interval)
+        - Single UI operation for multiple data chunks improves responsiveness
+
+    Bug Fixes:
+        - Fixed incomplete multi-byte character handling with byte buffer mechanism
+        - Fixed Chinese character corruption in received data
+        - Improved UTF-8 and GBK character boundary detection
+        - Prevented data loss when characters are split across packets
+
+    Code Quality Improvements:
+        - Removed QMutex (no longer needed with new architecture)
+        - Added comprehensive type annotations (Dict, List, Optional, Any)
+        - Improved toggle button positioning with relative coordinates
+        - Added keyboard shortcut support (Home, End, Tab keys)
+        - Enhanced code readability with better type hints
+
+    Technical Details:
+        - New methods: _utf8_bytes_to_text(), _gbk_bytes_to_text()
+        - Byte buffer mechanism for handling incomplete characters
+        - Timer-based polling replaces signal-slot for better performance
+        - Reduced UI thread blocking with batch updates
+
 v2.0.0 (2026-02-09) - Major Refactoring Release:
     Architecture Refactoring:
         - Refactored from monolithic "God Object" to modular architecture

@@ -37,7 +37,7 @@
 - ✅ Send/Receive byte statistics
 
 ### Encoding Support
-ASCII • UTF-8 • UTF-16 • UTF-32 • GBK/GB2312
+ASCII • UTF-8 • GBK/GB2312
 
 ---
 
@@ -185,7 +185,7 @@ Send: 1024  |  Receive: 2048
 
 Menu Bar → **Settings** → **Encoding** → Select encoding
 
-Supported: ASCII, UTF-8, UTF-16, UTF-32, GBK/GB2312
+Supported: ASCII, UTF-8, GBK/GB2312
 
 ---
 

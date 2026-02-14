@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'mainwindow.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.1
+## Created by: Qt User Interface Compiler version 6.10.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -47,19 +47,14 @@ class Ui_MainWindow(object):
         self.actionUTF_8 = QAction(MainWindow)
         self.actionUTF_8.setObjectName(u"actionUTF_8")
         self.actionUTF_8.setCheckable(True)
+        self.actionUTF_8.setChecked(True)
         self.actionASCII = QAction(MainWindow)
         self.actionASCII.setObjectName(u"actionASCII")
         self.actionASCII.setCheckable(True)
-        self.actionUTF_16 = QAction(MainWindow)
-        self.actionUTF_16.setObjectName(u"actionUTF_16")
-        self.actionUTF_16.setCheckable(True)
-        self.actionUTF_32 = QAction(MainWindow)
-        self.actionUTF_32.setObjectName(u"actionUTF_32")
-        self.actionUTF_32.setCheckable(True)
         self.actionGBK_GB2312 = QAction(MainWindow)
         self.actionGBK_GB2312.setObjectName(u"actionGBK_GB2312")
         self.actionGBK_GB2312.setCheckable(True)
-        self.actionGBK_GB2312.setChecked(True)
+        self.actionGBK_GB2312.setChecked(False)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.groupBox = QGroupBox(self.centralwidget)
@@ -346,10 +341,6 @@ class Ui_MainWindow(object):
         self.menuEncoding_Type.addSeparator()
         self.menuEncoding_Type.addAction(self.actionUTF_8)
         self.menuEncoding_Type.addSeparator()
-        self.menuEncoding_Type.addAction(self.actionUTF_16)
-        self.menuEncoding_Type.addSeparator()
-        self.menuEncoding_Type.addAction(self.actionUTF_32)
-        self.menuEncoding_Type.addSeparator()
         self.menuEncoding_Type.addAction(self.actionGBK_GB2312)
 
         self.retranslateUi(MainWindow)
@@ -372,8 +363,6 @@ class Ui_MainWindow(object):
         self.actionOpen_File.setText(QCoreApplication.translate("MainWindow", u"Open File", None))
         self.actionUTF_8.setText(QCoreApplication.translate("MainWindow", u"UTF-8", None))
         self.actionASCII.setText(QCoreApplication.translate("MainWindow", u"ASCII", None))
-        self.actionUTF_16.setText(QCoreApplication.translate("MainWindow", u"UTF-16", None))
-        self.actionUTF_32.setText(QCoreApplication.translate("MainWindow", u"UTF-32", None))
         self.actionGBK_GB2312.setText(QCoreApplication.translate("MainWindow", u"GBK/GB2312", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Settings", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"SerialPort", None))
